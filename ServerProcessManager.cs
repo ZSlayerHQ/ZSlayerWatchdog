@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ZSlayerCommandCenter.Launcher;
@@ -16,8 +18,21 @@ public class ServerProcessManager
     private string _workingDir = "";
     private bool _available;
     private bool _stopping;
+    private CancellationTokenSource? _readinessCts;
+
+    private static readonly HttpClient _httpClient = new(new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+    })
+    { Timeout = TimeSpan.FromSeconds(3) };
 
     public bool IsRunning => _process != null && !_process.HasExited;
+
+    /// <summary>True once the SPT webserver is actually accepting HTTP connections.</summary>
+    public bool ServerReady { get; private set; }
+
+    /// <summary>The server's backend URL read from http.json (e.g. "https://127.0.0.1:6969").</summary>
+    public string ServerUrl { get; private set; } = "https://127.0.0.1:6969";
 
     public ServerProcessManager(WatchdogSection config, string sptRoot, Action<string> log)
     {
@@ -59,11 +74,46 @@ public class ServerProcessManager
         if (_available)
         {
             _log($"SPT.Server.exe found: {_exePath}");
+            ReadHttpConfig();
             TryAttachExisting();
         }
         else
         {
             _log("SPT.Server.exe not found — place launcher next to SPT.Server.exe");
+        }
+    }
+
+    /// <summary>
+    /// Reads SPT_Data/configs/http.json to determine the server's bound IP and port.
+    /// Falls back to https://127.0.0.1:6969 if the file is missing or unreadable.
+    /// </summary>
+    private void ReadHttpConfig()
+    {
+        try
+        {
+            // http.json lives relative to the server exe's working directory
+            var httpJsonPath = Path.Combine(_workingDir, "SPT_Data", "configs", "http.json");
+            if (!File.Exists(httpJsonPath))
+            {
+                _log($"http.json not found at {httpJsonPath} — using default {ServerUrl}");
+                return;
+            }
+
+            var json = File.ReadAllText(httpJsonPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var ip = root.TryGetProperty("ip", out var ipEl) ? ipEl.GetString() : "127.0.0.1";
+            var port = root.TryGetProperty("port", out var portEl) ? portEl.GetInt32() : 6969;
+
+            // For health checks, always use 127.0.0.1 (0.0.0.0 isn't connectable)
+            var connectIp = ip == "0.0.0.0" ? "127.0.0.1" : ip;
+            ServerUrl = $"https://{connectIp}:{port}";
+            _log($"Server URL from http.json: {ServerUrl}");
+        }
+        catch (Exception ex)
+        {
+            _log($"Failed to read http.json: {ex.Message} — using default {ServerUrl}");
         }
     }
 
@@ -98,6 +148,7 @@ public class ServerProcessManager
                         catch { _startedAt = DateTime.UtcNow; }
 
                         _log($"Attached to existing server process (PID {p.Id})");
+                        StartReadinessProbe();
                         return;
                     }
                 }
@@ -136,6 +187,7 @@ public class ServerProcessManager
                 _process.Exited += OnProcessExited;
                 _startedAt = DateTime.UtcNow;
                 _log($"Server started (PID {_process.Id})");
+                StartReadinessProbe();
             }
         }
         catch (Exception ex)
@@ -147,6 +199,7 @@ public class ServerProcessManager
     public void Stop()
     {
         _stopping = true;
+        CancelReadinessProbe();
 
         if (_process != null && !_process.HasExited)
         {
@@ -170,6 +223,49 @@ public class ServerProcessManager
     {
         Stop();
         Start();
+    }
+
+    /// <summary>
+    /// Starts a background task that polls the server's HTTP endpoint until it responds,
+    /// then sets ServerReady = true.
+    /// </summary>
+    private void StartReadinessProbe()
+    {
+        CancelReadinessProbe();
+        _readinessCts = new CancellationTokenSource();
+        var token = _readinessCts.Token;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var resp = await _httpClient.GetAsync(ServerUrl, token);
+                        // Any response means the webserver is up
+                        ServerReady = true;
+                        _log("Server webserver is ready (HTTP health check passed)");
+                        return;
+                    }
+                    catch (TaskCanceledException) { throw; }
+                    catch
+                    {
+                        // Connection refused / timeout — server not ready yet
+                        await Task.Delay(2000, token);
+                    }
+                }
+            }
+            catch (TaskCanceledException) { }
+        }, token);
+    }
+
+    private void CancelReadinessProbe()
+    {
+        ServerReady = false;
+        _readinessCts?.Cancel();
+        _readinessCts = null;
     }
 
     public WatchdogStatus GetStatus()
@@ -205,6 +301,7 @@ public class ServerProcessManager
 
     private void OnProcessExited(object? sender, EventArgs e)
     {
+        CancelReadinessProbe();
         if (_stopping) return;
 
         var exitCode = _process?.ExitCode;

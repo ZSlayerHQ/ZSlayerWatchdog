@@ -9,6 +9,7 @@ public class HeadlessProcessManager
     private readonly HeadlessSection _config;
     private readonly string _sptRoot;
     private readonly Action<string> _log;
+    private ServerProcessManager? _serverManager;
     private Process? _process;
     private DateTime? _startedAt;
     private int _restartCount;
@@ -27,6 +28,9 @@ public class HeadlessProcessManager
         _sptRoot = sptRoot;
         _log = log;
     }
+
+    /// <summary>Wire up the server manager reference so we can read ServerUrl at launch time.</summary>
+    public void SetServerManager(ServerProcessManager server) => _serverManager = server;
 
     public void Configure()
     {
@@ -155,8 +159,9 @@ public class HeadlessProcessManager
 
         _stopping = false;
 
+        var backendUrl = _serverManager?.ServerUrl ?? "https://127.0.0.1:6969";
         var args = $"-token={_config.ProfileId} " +
-                   $"-config={{'BackendUrl':'https://127.0.0.1:6969','Version':'live'}} " +
+                   $"-config={{'BackendUrl':'{backendUrl}','Version':'live'}} " +
                    "-nographics -batchmode --enable-console true";
 
         try

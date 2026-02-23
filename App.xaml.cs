@@ -26,6 +26,7 @@ public partial class App : System.Windows.Application
         serverManager.Configure();
 
         var headlessManager = new HeadlessProcessManager(config.Headless, sptRoot, Log);
+        headlessManager.SetServerManager(serverManager);
         headlessManager.Configure();
 
         var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager);

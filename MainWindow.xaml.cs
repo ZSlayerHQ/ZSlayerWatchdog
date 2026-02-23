@@ -176,7 +176,7 @@ public partial class MainWindow : Window
     // ── Footer buttons ───────────────────────────────────────
     private void OpenCC_Click(object sender, RoutedEventArgs e)
     {
-        Process.Start(new ProcessStartInfo("https://127.0.0.1:6969/zslayer/cc/")
+        Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
             { UseShellExecute = true });
     }
 
@@ -211,9 +211,8 @@ public partial class MainWindow : Window
         var hdl = _headless.GetStatus();
         UpdateHeadlessCard(hdl);
 
-        // Headless start only allowed after server has been up long enough (same delay as auto-start)
-        var serverReady = svr.Running && svr.UptimeSeconds >= _config.Headless.AutoStartDelaySec;
-        BtnHdlStart.IsEnabled = serverReady && !hdl.Running;
+        // Headless start only allowed once server webserver is accepting connections
+        BtnHdlStart.IsEnabled = _server.ServerReady && !hdl.Running;
 
         BtnCC.IsEnabled = svr.Running;
 
@@ -297,7 +296,7 @@ public partial class MainWindow : Window
 
         _trayMenu.Items.Add("Show Window", null, (_, _) => Dispatcher.Invoke(ShowFromTray));
         _trayMenu.Items.Add("Open Command Center", null, (_, _) =>
-            Process.Start(new ProcessStartInfo("https://127.0.0.1:6969/zslayer/cc/")
+            Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
                 { UseShellExecute = true }));
         _trayMenu.Items.Add("-");
         _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() => _server.Restart()));
@@ -409,11 +408,7 @@ public partial class MainWindow : Window
             });
         }
 
-        _headless.StartAutoStartTimer(() =>
-        {
-            var s = _server.GetStatus();
-            return s.Running && s.UptimeSeconds >= _config.Headless.AutoStartDelaySec;
-        });
+        _headless.StartAutoStartTimer(() => _server.ServerReady);
     }
 
     // ── Dark Context Menu Renderer (for tray) ────────────────
