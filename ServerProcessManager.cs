@@ -123,6 +123,7 @@ public class ServerProcessManager
     /// </summary>
     public void TryAttachExisting()
     {
+        if (_stopping) return;
         if (_process != null && !_process.HasExited) return;
         if (!_available || string.IsNullOrEmpty(_exePath)) return;
 

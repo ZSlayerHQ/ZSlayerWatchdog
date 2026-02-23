@@ -91,11 +91,13 @@ public class WatchdogApi
                 break;
             case "stop" when method == "POST":
                 _log("Server stop requested via API");
+                if (_headless.IsRunning) { _log("Stopping headless first..."); _headless.Stop(); }
                 _server.Stop();
                 result = _server.GetStatus();
                 break;
             case "restart" when method == "POST":
                 _log("Server restart requested via API");
+                if (_headless.IsRunning) { _log("Stopping headless first..."); _headless.Stop(); }
                 _server.Stop();
                 Task.Run(async () =>
                 {

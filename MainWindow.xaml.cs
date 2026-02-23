@@ -109,8 +109,16 @@ public partial class MainWindow : Window
 
     // ── Server buttons ───────────────────────────────────────
     private void SvrStart_Click(object sender, RoutedEventArgs e) => _server.Start();
-    private void SvrStop_Click(object sender, RoutedEventArgs e) => _server.Stop();
-    private void SvrRestart_Click(object sender, RoutedEventArgs e) => _server.Restart();
+    private void SvrStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_headless.IsRunning) _headless.Stop();
+        _server.Stop();
+    }
+    private void SvrRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (_headless.IsRunning) _headless.Stop();
+        _server.Restart();
+    }
 
     // ── Headless buttons ─────────────────────────────────────
     private void HdlStart_Click(object sender, RoutedEventArgs e) => _headless.Start();
@@ -299,7 +307,11 @@ public partial class MainWindow : Window
             Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
                 { UseShellExecute = true }));
         _trayMenu.Items.Add("-");
-        _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() => _server.Restart()));
+        _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() =>
+        {
+            if (_headless.IsRunning) _headless.Stop();
+            _server.Restart();
+        }));
         _trayMenu.Items.Add("Restart Headless", null, (_, _) => Dispatcher.Invoke(() => _headless.Restart()));
         _trayMenu.Items.Add("-");
         _trayMenu.Items.Add("Quit", null, (_, _) => Dispatcher.Invoke(() => { _quitting = true; Close(); }));
@@ -369,8 +381,8 @@ public partial class MainWindow : Window
         _saveTimer?.Stop();
         _api.Stop();
 
-        if (_server.IsRunning) _server.Stop();
         if (_headless.IsRunning) _headless.Stop();
+        if (_server.IsRunning) _server.Stop();
 
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
