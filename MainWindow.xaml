@@ -8,7 +8,7 @@
         Title="ZSLAYER — WATCHDOG"
         Icon="app.ico">
 
-    <Grid>
+    <Grid ClipToBounds="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="36"/>
             <RowDefinition Height="*"/>
@@ -57,28 +57,31 @@
             </Grid.ColumnDefinitions>
 
             <!-- ── Server Card ────────────────────────────── -->
-            <Border Grid.Column="0" Background="{StaticResource CardBgBrush}"
+            <Border Grid.Column="0" VerticalAlignment="Stretch"
+                    Background="{StaticResource CardBgBrush}"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1" CornerRadius="6" Padding="16">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- 0: Header -->
+                        <RowDefinition Height="Auto"/>  <!-- 1: Stat labels row 1 -->
+                        <RowDefinition Height="Auto"/>  <!-- 2: Stat values row 1 -->
+                        <RowDefinition Height="Auto"/>  <!-- 3: Stat labels row 2 (empty) -->
+                        <RowDefinition Height="Auto"/>  <!-- 4: Stat values row 2 (empty) -->
+                        <RowDefinition Height="Auto"/>  <!-- 5: Slider label -->
+                        <RowDefinition Height="Auto"/>  <!-- 6: Slider -->
+                        <RowDefinition Height="Auto"/>  <!-- 7: Crashes label -->
+                        <RowDefinition Height="Auto"/>  <!-- 8: Crash value -->
+                        <RowDefinition Height="*"/>     <!-- 9: Spacer -->
+                        <RowDefinition Height="Auto"/>  <!-- 10: Buttons -->
                     </Grid.RowDefinitions>
 
-                    <!-- Header -->
+                    <!-- Row 0: Header -->
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="🖥" FontSize="14" VerticalAlignment="Center"/>
                             <TextBlock Text="SPT SERVER" Foreground="{StaticResource GoldBrush}"
-                                       FontSize="12" FontWeight="Bold" Margin="6,0,0,0"
+                                       FontSize="14" FontWeight="Bold" Margin="6,0,0,0"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <Border x:Name="SvrStatusPill" HorizontalAlignment="Right"
@@ -89,8 +92,8 @@
                         </Border>
                     </Grid>
 
-                    <!-- Stat Labels -->
-                    <Grid Grid.Row="1" Margin="0,0,0,2">
+                    <!-- Row 1: Stat Labels (UPTIME | PID | AUTO-RST | DELAY) -->
+                    <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
@@ -103,8 +106,8 @@
                         <TextBlock Grid.Column="3" Text="AUTO-START" Style="{StaticResource StatLabel}"/>
                     </Grid>
 
-                    <!-- Stat Values -->
-                    <Grid Grid.Row="2" Margin="0,0,0,14">
+                    <!-- Row 2: Stat Values -->
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
@@ -119,36 +122,39 @@
                                  Style="{StaticResource ToggleSwitch}"
                                  Checked="SvrAutoRst_Toggle" Unchecked="SvrAutoRst_Toggle"/>
                         <CheckBox x:Name="SvrAutoStartVal" Grid.Column="3"
-                                  Style="{StaticResource ToggleSwitch}"
-                                  Checked="SvrAutoStart_Toggle" Unchecked="SvrAutoStart_Toggle"/>
+                                 Style="{StaticResource ToggleSwitch}"
+                                 Checked="SvrAutoStart_Toggle" Unchecked="SvrAutoStart_Toggle"/>
                     </Grid>
 
-                    <!-- Session Timeout Label -->
-                    <Grid Grid.Row="3" Margin="0,0,0,4">
+                    <!-- Rows 3-4: Empty (spacer to match headless) -->
+
+                    <!-- Row 5: Session Timeout Label -->
+                    <Grid Grid.Row="5" Margin="0,8,0,0">
                         <TextBlock Text="SESSION TIMEOUT" Style="{StaticResource StatLabel}"/>
                         <TextBlock x:Name="SvrTimeoutLabel" HorizontalAlignment="Right"
                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                   FontSize="11" FontWeight="Bold"/>
+                                   FontSize="13" FontWeight="Bold"/>
                     </Grid>
 
-                    <!-- Session Timeout Slider -->
-                    <Slider x:Name="SvrTimeoutSlider" Grid.Row="4"
+                    <!-- Row 6: Session Timeout Slider -->
+                    <Slider x:Name="SvrTimeoutSlider" Grid.Row="6"
                             Style="{StaticResource GoldSlider}"
                             Minimum="1" Maximum="30"
                             IsSnapToTickEnabled="True" TickFrequency="1"
-                            Margin="0,0,0,14"/>
+                            Margin="0,8,0,0"/>
 
-                    <!-- Crashes Label -->
-                    <TextBlock Grid.Row="5" Text="CRASHES TODAY"
-                               Style="{StaticResource StatLabel}" Margin="0,0,0,2"/>
+                    <!-- Row 7: Crashes Label -->
+                    <TextBlock Grid.Row="7" Text="CRASHES TODAY"
+                               Style="{StaticResource StatLabel}" Margin="0,8,0,0"/>
 
-                    <!-- Crashes Value -->
-                    <TextBlock x:Name="SvrCrashVal" Grid.Row="6" Text="0"
-                               FontSize="20" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <!-- Row 8: Crashes Value -->
+                    <TextBlock x:Name="SvrCrashVal" Grid.Row="8" Text="0"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,8,0,0"/>
 
-                    <!-- Buttons -->
-                    <StackPanel Grid.Row="8" Orientation="Horizontal"
+                    <!-- Row 10: Buttons -->
+                    <StackPanel Grid.Row="10" Orientation="Horizontal"
                                 HorizontalAlignment="Right">
                         <Button x:Name="BtnSvrStart" Content="Start"
                                 Style="{StaticResource GoldButton}" Margin="0,0,6,0"
@@ -164,30 +170,33 @@
             </Border>
 
             <!-- ── Headless Card ──────────────────────────── -->
-            <Border Grid.Column="2" Background="{StaticResource CardBgBrush}"
+            <Border Grid.Column="2" VerticalAlignment="Stretch"
+                    Background="{StaticResource CardBgBrush}"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1" CornerRadius="6" Padding="16">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- 0: Header -->
+                        <RowDefinition Height="Auto"/>  <!-- 1: Stat labels row 1 -->
+                        <RowDefinition Height="Auto"/>  <!-- 2: Stat values row 1 -->
+                        <RowDefinition Height="Auto"/>  <!-- 3: (empty spacer) -->
+                        <RowDefinition Height="Auto"/>  <!-- 4: (empty spacer) -->
+                        <RowDefinition Height="Auto"/>  <!-- 5: Slider label -->
+                        <RowDefinition Height="Auto"/>  <!-- 6: Slider -->
+                        <RowDefinition Height="Auto"/>  <!-- 7: Delay/Profile labels -->
+                        <RowDefinition Height="Auto"/>  <!-- 8: Delay/Profile values -->
+                        <RowDefinition Height="Auto"/>  <!-- 9: Crashes label -->
+                        <RowDefinition Height="Auto"/>  <!-- 10: Crash value -->
+                        <RowDefinition Height="*"/>     <!-- 11: Spacer -->
+                        <RowDefinition Height="Auto"/>  <!-- 12: Buttons -->
                     </Grid.RowDefinitions>
 
-                    <!-- Header -->
+                    <!-- Row 0: Header -->
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="🖥" FontSize="14" VerticalAlignment="Center"/>
                             <TextBlock Text="HEADLESS" Foreground="{StaticResource GoldBrush}"
-                                       FontSize="12" FontWeight="Bold" Margin="6,0,0,0"
+                                       FontSize="14" FontWeight="Bold" Margin="6,0,0,0"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <Border x:Name="HdlStatusPill" HorizontalAlignment="Right"
@@ -198,9 +207,10 @@
                         </Border>
                     </Grid>
 
-                    <!-- Stat Labels Row 1 -->
-                    <Grid Grid.Row="1" Margin="0,0,0,2">
+                    <!-- Row 1: Stat Labels (UPTIME | PID | AUTO-RST | AUTO-START) -->
+                    <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
@@ -208,11 +218,13 @@
                         <TextBlock Grid.Column="0" Text="UPTIME" Style="{StaticResource StatLabel}"/>
                         <TextBlock Grid.Column="1" Text="PID" Style="{StaticResource StatLabel}"/>
                         <TextBlock Grid.Column="2" Text="AUTO-RST" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Column="3" Text="AUTO-START" Style="{StaticResource StatLabel}"/>
                     </Grid>
 
-                    <!-- Stat Values Row 1 -->
-                    <Grid Grid.Row="2" Margin="0,0,0,12">
+                    <!-- Row 2: Stat Values -->
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
@@ -224,62 +236,65 @@
                         <CheckBox x:Name="HdlAutoRstVal" Grid.Column="2"
                                  Style="{StaticResource ToggleSwitch}"
                                  Checked="HdlAutoRst_Toggle" Unchecked="HdlAutoRst_Toggle"/>
-                    </Grid>
-
-                    <!-- Stat Labels Row 2 -->
-                    <Grid Grid.Row="3" Margin="0,0,0,2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="AUTO-START" Style="{StaticResource StatLabel}"/>
-                        <TextBlock Grid.Column="1" Text="START DELAY" Style="{StaticResource StatLabel}"/>
-                        <TextBlock Grid.Column="2" Text="PROFILE" Style="{StaticResource StatLabel}"/>
-                    </Grid>
-
-                    <!-- Stat Values Row 2 -->
-                    <Grid Grid.Row="4" Margin="0,0,0,14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <CheckBox x:Name="HdlAutoStartVal" Grid.Column="0"
+                        <CheckBox x:Name="HdlAutoStartVal" Grid.Column="3"
                                  Style="{StaticResource ToggleSwitch}"
                                  Checked="HdlAutoStart_Toggle" Unchecked="HdlAutoStart_Toggle"/>
-                        <TextBlock x:Name="HdlDelayVal" Grid.Column="1"
-                                   Style="{StaticResource StatValue}"/>
-                        <TextBlock x:Name="HdlProfileVal" Grid.Column="2"
-                                   Style="{StaticResource StatValue}" TextTrimming="CharacterEllipsis"/>
                     </Grid>
 
-                    <!-- Restart After Raids Label -->
-                    <Grid Grid.Row="5" Margin="0,0,0,4">
+                    <!-- Rows 3-4: Empty (spacer to match server) -->
+
+                    <!-- Row 5: Restart After Raids Label -->
+                    <Grid Grid.Row="5" Margin="0,8,0,0">
                         <TextBlock Text="RESTART AFTER RAIDS" Style="{StaticResource StatLabel}"/>
                         <TextBlock x:Name="HdlRaidLabel" HorizontalAlignment="Right"
                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                   FontSize="11" FontWeight="Bold"/>
+                                   FontSize="13" FontWeight="Bold"/>
                     </Grid>
 
-                    <!-- Restart After Raids Slider -->
+                    <!-- Row 6: Restart After Raids Slider -->
                     <Slider x:Name="HdlRaidSlider" Grid.Row="6"
                             Style="{StaticResource GoldSlider}"
                             Minimum="0" Maximum="10"
                             IsSnapToTickEnabled="True" TickFrequency="1"
-                            Margin="0,0,0,14"/>
+                            Margin="0,8,0,0"/>
 
-                    <!-- Crashes Label -->
-                    <TextBlock Grid.Row="7" Text="CRASHES TODAY"
-                               Style="{StaticResource StatLabel}" Margin="0,0,0,2"/>
+                    <!-- Row 7: START DELAY | PROFILE Labels -->
+                    <Grid Grid.Row="7" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="START DELAY" Style="{StaticResource StatLabel}"/>
+                        <TextBlock Grid.Column="1" Text="PROFILE" Style="{StaticResource StatLabel}"/>
+                    </Grid>
 
-                    <!-- Crashes Value -->
-                    <TextBlock x:Name="HdlCrashVal" Grid.Row="8" Text="0"
-                               FontSize="20" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <!-- Row 8: START DELAY | PROFILE Values -->
+                    <Grid Grid.Row="8" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="HdlDelayVal" Grid.Column="0"
+                                   Style="{StaticResource StatValue}"/>
+                        <Button x:Name="BtnHdlProfile" Grid.Column="1"
+                                Content="🤖" Style="{StaticResource GoldButton}"
+                                Padding="6,2" MinWidth="0" FontSize="14"
+                                HorizontalAlignment="Left"
+                                Click="HdlProfile_Click"/>
+                    </Grid>
 
-                    <!-- Buttons -->
-                    <StackPanel Grid.Row="10" Orientation="Horizontal"
+                    <!-- Row 9: Crashes Label -->
+                    <TextBlock Grid.Row="9" Text="CRASHES TODAY"
+                               Style="{StaticResource StatLabel}" Margin="0,8,0,0"/>
+
+                    <!-- Row 10: Crashes Value -->
+                    <TextBlock x:Name="HdlCrashVal" Grid.Row="10" Text="0"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,8,0,0"/>
+
+                    <!-- Row 12: Buttons -->
+                    <StackPanel Grid.Row="12" Orientation="Horizontal"
                                 HorizontalAlignment="Right">
                         <Button x:Name="BtnHdlStart" Content="Start"
                                 Style="{StaticResource GoldButton}" Margin="0,0,6,0"
@@ -309,7 +324,7 @@
                     <TextBlock Text="│" Foreground="{StaticResource TextMutedBrush}"
                                FontFamily="Consolas" FontSize="11"
                                VerticalAlignment="Center" Margin="8,0"/>
-                    <TextBlock Text="MIN→TRAY" Foreground="{StaticResource TextMutedBrush}"
+                    <TextBlock Text="Minimize to Tray" Foreground="{StaticResource TextMutedBrush}"
                                FontSize="9" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <CheckBox x:Name="TrayToggleVal"

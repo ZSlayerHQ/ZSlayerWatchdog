@@ -128,7 +128,9 @@
                                                   IsTabStop="False" Focusable="False">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="Transparent"/>
+                                                <Border Height="4" CornerRadius="2"
+                                                        Background="#2a2520"
+                                                        VerticalAlignment="Center"/>
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
@@ -196,7 +198,7 @@
         <!-- ── Stat Value Style ────────────────────────────── -->
         <Style x:Key="StatValue" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         </Style>

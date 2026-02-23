@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private static readonly Media.SolidColorBrush RedBrush = new(Media.Color.FromRgb(0x8b, 0x3a, 0x3a));
     private static readonly Media.SolidColorBrush OrangeBrush = new(Media.Color.FromRgb(0xc8, 0x7a, 0x3e));
     private static readonly Media.SolidColorBrush PrimaryBrush = new(Media.Color.FromRgb(0xe8, 0xdc, 0xc8));
+    private static readonly Media.SolidColorBrush DimmedBrush = new(Media.Color.FromRgb(0x7a, 0x70, 0x60));
 
     public MainWindow(WatchdogAppConfig config, string configPath,
                       ServerProcessManager server, HeadlessProcessManager headless)
@@ -75,7 +76,7 @@ public partial class MainWindow : Window
         HdlDelayVal.Text = $"{_config.Headless.AutoStartDelaySec}s";
 
         var profileName = _headless.GetStatus().ProfileName;
-        HdlProfileVal.Text = string.IsNullOrEmpty(profileName) ? "\U0001F916" : $"\U0001F916 {profileName}";
+        BtnHdlProfile.ToolTip = string.IsNullOrEmpty(profileName) ? "No profile" : $"\U0001F916 {profileName}";
 
         var raids = Math.Clamp(_config.Headless.RestartAfterRaids, 0, 10);
         HdlRaidSlider.Value = raids;
@@ -132,6 +133,12 @@ public partial class MainWindow : Window
         DebounceSaveConfig();
     }
 
+    private void TrayToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _config.Watchdog.MinimizeToTray = TrayToggleVal.IsChecked == true;
+        DebounceSaveConfig();
+    }
+
     // ── Toggle handlers ─────────────────────────────────────
     private void SvrAutoRst_Toggle(object sender, RoutedEventArgs e)
     {
@@ -157,10 +164,12 @@ public partial class MainWindow : Window
         DebounceSaveConfig();
     }
 
-    private void TrayToggle_Click(object sender, RoutedEventArgs e)
+    // ── Profile button ──────────────────────────────────────
+    private void HdlProfile_Click(object sender, RoutedEventArgs e)
     {
-        _config.Watchdog.MinimizeToTray = TrayToggleVal.IsChecked == true;
-        DebounceSaveConfig();
+        var profilesDir = Path.Combine(_server.SptRoot, "user", "profiles");
+        if (Directory.Exists(profilesDir))
+            Process.Start(new ProcessStartInfo(profilesDir) { UseShellExecute = true });
     }
 
     // ── Footer buttons ───────────────────────────────────────
@@ -219,7 +228,7 @@ public partial class MainWindow : Window
         SvrCrashVal.Text = svr.RestartCount.ToString();
         SvrCrashVal.Foreground = svr.RestartCount switch
         {
-            0 => PrimaryBrush,
+            0 => DimmedBrush,
             1 or 2 => OrangeBrush,
             _ => RedBrush
         };
@@ -249,7 +258,7 @@ public partial class MainWindow : Window
         HdlCrashVal.Text = hdl.RestartCount.ToString();
         HdlCrashVal.Foreground = hdl.RestartCount switch
         {
-            0 => PrimaryBrush,
+            0 => DimmedBrush,
             1 or 2 => OrangeBrush,
             _ => RedBrush
         };
