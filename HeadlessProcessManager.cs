@@ -117,27 +117,23 @@ public class HeadlessProcessManager
         catch { /* GetProcessesByName can throw on restricted environments */ }
     }
 
-    public void StartAutoStartTimer(Func<bool> isServerRunning)
+    public void StartAutoStartTimer(Func<bool> isServerReady)
     {
         if (!_config.AutoStart || !_available || string.IsNullOrEmpty(_config.ProfileId))
             return;
 
-        var delay = Math.Clamp(_config.AutoStartDelaySec, 1, 300);
         _autoStartCts = new CancellationTokenSource();
         var token = _autoStartCts.Token;
 
-        _log($"Headless auto-start scheduled ({delay}s after server ready)...");
+        _log("Headless auto-start scheduled (waiting for server readiness)...");
 
         Task.Run(async () =>
         {
             try
             {
-                // Wait for server to be running
-                while (!isServerRunning() && !token.IsCancellationRequested)
+                // Wait for server to be ready (caller checks uptime threshold)
+                while (!isServerReady() && !token.IsCancellationRequested)
                     await Task.Delay(1000, token);
-
-                // Then wait the configured delay
-                await Task.Delay(TimeSpan.FromSeconds(delay), token);
 
                 if (!token.IsCancellationRequested && !IsRunning)
                     Start();

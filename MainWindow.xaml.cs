@@ -409,7 +409,11 @@ public partial class MainWindow : Window
             });
         }
 
-        _headless.StartAutoStartTimer(() => _server.IsRunning);
+        _headless.StartAutoStartTimer(() =>
+        {
+            var s = _server.GetStatus();
+            return s.Running && s.UptimeSeconds >= _config.Headless.AutoStartDelaySec;
+        });
     }
 
     // ── Dark Context Menu Renderer (for tray) ────────────────
