@@ -215,14 +215,18 @@ public partial class MainWindow : Window
             SvrStatusPill.Background = GreenBrush;
             SvrStatusText.Text = "\u25CF Running";
             SvrUptimeVal.Text = svr.Uptime;
+            SvrUptimeVal.Foreground = GreenBrush;
             SvrPidVal.Text = svr.Pid?.ToString() ?? "--";
+            SvrPidVal.Foreground = DimmedBrush;
         }
         else
         {
             SvrStatusPill.Background = RedBrush;
             SvrStatusText.Text = "\u25CF Stopped";
             SvrUptimeVal.Text = "--";
+            SvrUptimeVal.Foreground = DimmedBrush;
             SvrPidVal.Text = "--";
+            SvrPidVal.Foreground = DimmedBrush;
         }
 
         SvrCrashVal.Text = svr.RestartCount.ToString();
@@ -245,14 +249,18 @@ public partial class MainWindow : Window
             HdlStatusPill.Background = GreenBrush;
             HdlStatusText.Text = "\u25CF Running";
             HdlUptimeVal.Text = hdl.Uptime;
+            HdlUptimeVal.Foreground = GreenBrush;
             HdlPidVal.Text = hdl.Pid?.ToString() ?? "--";
+            HdlPidVal.Foreground = DimmedBrush;
         }
         else
         {
             HdlStatusPill.Background = RedBrush;
             HdlStatusText.Text = "\u25CF Stopped";
             HdlUptimeVal.Text = "--";
+            HdlUptimeVal.Foreground = DimmedBrush;
             HdlPidVal.Text = "--";
+            HdlPidVal.Foreground = DimmedBrush;
         }
 
         HdlCrashVal.Text = hdl.RestartCount.ToString();

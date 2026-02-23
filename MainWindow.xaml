@@ -115,9 +115,11 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="SvrUptimeVal" Grid.Column="0" Text="--"
-                                   Style="{StaticResource StatValue}"/>
+                                   Style="{StaticResource StatValue}"
+                                   FontSize="13" Foreground="{StaticResource TextDimmedBrush}"/>
                         <TextBlock x:Name="SvrPidVal" Grid.Column="1" Text="--"
-                                   Style="{StaticResource StatValue}"/>
+                                   Style="{StaticResource StatValue}"
+                                   FontSize="12" Foreground="{StaticResource TextDimmedBrush}"/>
                         <CheckBox x:Name="SvrAutoRstVal" Grid.Column="2"
                                  Style="{StaticResource ToggleSwitch}"
                                  Checked="SvrAutoRst_Toggle" Unchecked="SvrAutoRst_Toggle"/>
@@ -230,9 +232,11 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="HdlUptimeVal" Grid.Column="0" Text="--"
-                                   Style="{StaticResource StatValue}"/>
+                                   Style="{StaticResource StatValue}"
+                                   FontSize="13" Foreground="{StaticResource TextDimmedBrush}"/>
                         <TextBlock x:Name="HdlPidVal" Grid.Column="1" Text="--"
-                                   Style="{StaticResource StatValue}"/>
+                                   Style="{StaticResource StatValue}"
+                                   FontSize="12" Foreground="{StaticResource TextDimmedBrush}"/>
                         <CheckBox x:Name="HdlAutoRstVal" Grid.Column="2"
                                  Style="{StaticResource ToggleSwitch}"
                                  Checked="HdlAutoRst_Toggle" Unchecked="HdlAutoRst_Toggle"/>
