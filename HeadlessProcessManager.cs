@@ -72,6 +72,49 @@ public class HeadlessProcessManager
                 catch { /* ignore parse errors */ }
             }
         }
+
+        if (_available)
+            TryAttachExisting();
+    }
+
+    /// <summary>
+    /// Scan running processes to detect an externally-launched headless instance.
+    /// Only attaches if we are not already tracking a process.
+    /// </summary>
+    public void TryAttachExisting()
+    {
+        if (_process != null && !_process.HasExited) return;
+        if (!_available || string.IsNullOrEmpty(_exePath)) return;
+
+        var procName = Path.GetFileNameWithoutExtension(_exePath);
+        try
+        {
+            foreach (var p in Process.GetProcessesByName(procName))
+            {
+                try
+                {
+                    var modulePath = p.MainModule?.FileName;
+                    if (modulePath != null &&
+                        string.Equals(Path.GetFullPath(modulePath), Path.GetFullPath(_exePath),
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        _process = p;
+                        _process.EnableRaisingEvents = true;
+                        _process.Exited += OnProcessExited;
+                        _stopping = false;
+
+                        // Use the process start time for accurate uptime
+                        try { _startedAt = p.StartTime.ToUniversalTime(); }
+                        catch { _startedAt = DateTime.UtcNow; }
+
+                        _log($"Attached to existing headless process (PID {p.Id})");
+                        return;
+                    }
+                }
+                catch { /* access denied on MainModule for some processes — skip */ }
+            }
+        }
+        catch { /* GetProcessesByName can throw on restricted environments */ }
     }
 
     public void StartAutoStartTimer(Func<bool> isServerRunning)

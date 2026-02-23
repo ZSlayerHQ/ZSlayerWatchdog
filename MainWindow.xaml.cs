@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private readonly WatchdogApi _api;
     private readonly DispatcherTimer _pollTimer;
     private DispatcherTimer? _saveTimer;
+    private int _attachScanCounter;
     private WinForms.NotifyIcon _trayIcon = null!;
     private WinForms.ContextMenuStrip _trayMenu = null!;
     private bool _quitting;
@@ -195,11 +196,24 @@ public partial class MainWindow : Window
     // ── Polling Timer ────────────────────────────────────────
     private void PollTimer_Tick(object? sender, EventArgs e)
     {
+        // Periodic re-scan for externally-launched processes every ~5s
+        _attachScanCounter++;
+        if (_attachScanCounter >= 5)
+        {
+            _attachScanCounter = 0;
+            _server.TryAttachExisting();
+            _headless.TryAttachExisting();
+        }
+
         var svr = _server.GetStatus();
         UpdateServerCard(svr);
 
         var hdl = _headless.GetStatus();
         UpdateHeadlessCard(hdl);
+
+        // Headless start only allowed after server has been up long enough (same delay as auto-start)
+        var serverReady = svr.Running && svr.UptimeSeconds >= _config.Headless.AutoStartDelaySec;
+        BtnHdlStart.IsEnabled = serverReady && !hdl.Running;
 
         BtnCC.IsEnabled = svr.Running;
 
@@ -271,7 +285,6 @@ public partial class MainWindow : Window
             _ => RedBrush
         };
 
-        BtnHdlStart.IsEnabled = !hdl.Running;
         BtnHdlStop.IsEnabled = hdl.Running;
         BtnHdlRestart.IsEnabled = hdl.Running;
     }
