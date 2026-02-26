@@ -162,7 +162,22 @@ public partial class App : System.Windows.Application
         }
 
         // 3. ServerProcessManager already parsed http.json
-        return server.ServerUrl;
+        if (!string.IsNullOrEmpty(server.ServerUrl))
+            return server.ServerUrl;
+
+        // 4. Fallback to localhost default
+        const string fallback = "https://127.0.0.1:6969";
+        Log($"No server URL discovered — defaulting to {fallback}");
+        wdConfig.ServerUrl = fallback;
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "watchdog-config.json");
+            var json = JsonSerializer.Serialize(wdConfig, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+        }
+        catch { /* best effort */ }
+
+        return fallback;
     }
 
     /// <summary>

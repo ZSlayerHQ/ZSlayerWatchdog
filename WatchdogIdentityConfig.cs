@@ -15,7 +15,7 @@ public class WatchdogIdentityConfig
     public string Name { get; set; } = "Watchdog";
 
     [JsonPropertyName("serverUrl")]
-    public string ServerUrl { get; set; } = "";
+    public string ServerUrl { get; set; } = "https://127.0.0.1:6969";
 
     [JsonPropertyName("token")]
     public string Token { get; set; } = "";
