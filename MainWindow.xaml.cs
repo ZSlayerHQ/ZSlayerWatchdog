@@ -16,10 +16,11 @@ public partial class MainWindow : Window
     private readonly string _configPath;
     private readonly ServerProcessManager _server;
     private readonly HeadlessProcessManager _headless;
-    private readonly WatchdogApi _api;
+    private readonly CommandCenterConnection _connection;
     private readonly DispatcherTimer _pollTimer;
     private DispatcherTimer? _saveTimer;
     private int _attachScanCounter;
+    private int _statusSendCounter;
     private WinForms.NotifyIcon _trayIcon = null!;
     private WinForms.ContextMenuStrip _trayMenu = null!;
     private bool _quitting;
@@ -33,13 +34,14 @@ public partial class MainWindow : Window
     private static readonly Media.SolidColorBrush DimmedBrush = new(Media.Color.FromRgb(0x7a, 0x70, 0x60));
 
     public MainWindow(WatchdogAppConfig config, string configPath,
-                      ServerProcessManager server, HeadlessProcessManager headless)
+                      ServerProcessManager server, HeadlessProcessManager headless,
+                      CommandCenterConnection connection)
     {
         _config = config;
         _configPath = configPath;
         _server = server;
         _headless = headless;
-        _api = new WatchdogApi(server, headless, config, _ => { });
+        _connection = connection;
 
         InitializeComponent();
         InitializeValues();
@@ -50,18 +52,22 @@ public partial class MainWindow : Window
 
         BuildTrayIcon();
 
+        // Listen for connection state changes (fires from background thread)
+        _connection.StateChanged += state =>
+            Dispatcher.Invoke(() => UpdateConnectionStatus(state));
+
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _pollTimer.Tick += PollTimer_Tick;
         _pollTimer.Start();
 
-        _api.Start();
+        _connection.Start();
         CheckForUpdatesAsync();
         ScheduleAutoStart();
     }
 
     private void InitializeValues()
     {
-        ApiLabel.Text = $"API: http://127.0.0.1:{_config.Watchdog.Port}";
+        UpdateConnectionStatus(_connection.ConnectionState);
 
         // Server card
         SvrAutoRstVal.IsChecked = _config.Watchdog.AutoRestartOnCrash;
@@ -82,6 +88,25 @@ public partial class MainWindow : Window
         var raids = Math.Clamp(_config.Headless.RestartAfterRaids, 0, 10);
         HdlRaidSlider.Value = raids;
         HdlRaidLabel.Text = raids == 0 ? "Off" : raids.ToString();
+    }
+
+    private void UpdateConnectionStatus(CommandCenterConnection.State state)
+    {
+        switch (state)
+        {
+            case CommandCenterConnection.State.Connected:
+                ConnectionLabel.Text = "\u25CF Connected";
+                ConnectionLabel.Foreground = GreenBrush;
+                break;
+            case CommandCenterConnection.State.Connecting:
+                ConnectionLabel.Text = "\u25CF Connecting...";
+                ConnectionLabel.Foreground = OrangeBrush;
+                break;
+            default:
+                ConnectionLabel.Text = "\u25CF Disconnected";
+                ConnectionLabel.Foreground = RedBrush;
+                break;
+        }
     }
 
     // ── Title bar ────────────────────────────────────────────
@@ -211,6 +236,14 @@ public partial class MainWindow : Window
             _attachScanCounter = 0;
             _server.TryAttachExisting();
             _headless.TryAttachExisting();
+        }
+
+        // Send status to CC server every ~5s
+        _statusSendCounter++;
+        if (_statusSendCounter >= 5)
+        {
+            _statusSendCounter = 0;
+            _ = _connection.SendStatusAsync();
         }
 
         var svr = _server.GetStatus();
@@ -379,7 +412,7 @@ public partial class MainWindow : Window
 
         _pollTimer.Stop();
         _saveTimer?.Stop();
-        _api.Stop();
+        _connection.Stop();
 
         if (_headless.IsRunning) _headless.Stop();
         if (_server.IsRunning) _server.Stop();

@@ -1,0 +1,19 @@
+using System.Text.Json.Serialization;
+
+namespace ZSlayerCommandCenter.Launcher;
+
+/// <summary>
+/// Watchdog-specific identity config, stored in watchdog-config.json next to the exe.
+/// Separate from the CC shared config.json.
+/// </summary>
+public class WatchdogIdentityConfig
+{
+    [JsonPropertyName("watchdogId")]
+    public string WatchdogId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "Watchdog";
+
+    [JsonPropertyName("serverUrl")]
+    public string ServerUrl { get; set; } = "";
+}

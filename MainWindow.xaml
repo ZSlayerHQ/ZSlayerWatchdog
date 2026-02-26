@@ -321,10 +321,11 @@
             <Grid Margin="12,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                             HorizontalAlignment="Left">
-                    <TextBlock x:Name="ApiLabel"
+                    <TextBlock x:Name="ConnectionLabel"
                                Foreground="{StaticResource TextMutedBrush}"
                                FontFamily="Consolas" FontSize="11"
-                               VerticalAlignment="Center"/>
+                               VerticalAlignment="Center"
+                               Text="&#x25CF; Disconnected"/>
                     <TextBlock Text="│" Foreground="{StaticResource TextMutedBrush}"
                                FontFamily="Consolas" FontSize="11"
                                VerticalAlignment="Center" Margin="8,0"/>

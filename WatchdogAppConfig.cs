@@ -21,9 +21,6 @@ public class WatchdogAppConfig
 
 public class WatchdogSection
 {
-    [JsonPropertyName("port")]
-    public int Port { get; set; } = 6971;
-
     [JsonPropertyName("sptServerExe")]
     public string SptServerExe { get; set; } = "auto";
 

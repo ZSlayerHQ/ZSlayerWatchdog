@@ -19,8 +19,13 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Load CC shared config
         var configPath = Path.Combine(sptRoot, "user", "mods", "ZSlayerCommandCenter", "config", "config.json");
         var config = LoadConfig(configPath);
+
+        // Load watchdog identity config (separate from CC config)
+        var watchdogConfigPath = Path.Combine(AppContext.BaseDirectory, "watchdog-config.json");
+        var watchdogConfig = LoadWatchdogConfig(watchdogConfigPath);
 
         var serverManager = new ServerProcessManager(config.Watchdog, sptRoot, Log);
         serverManager.Configure();
@@ -29,7 +34,15 @@ public partial class App : System.Windows.Application
         headlessManager.SetServerManager(serverManager);
         headlessManager.Configure();
 
-        var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager);
+        // Discover server URL: watchdog-config → HeadlessConfig.json → http.json fallback
+        var serverUrl = DiscoverServerUrl(watchdogConfig, sptRoot, serverManager);
+
+        // Create WebSocket connection to CC server
+        var connection = new CommandCenterConnection(
+            serverUrl, watchdogConfig.WatchdogId, watchdogConfig.Name,
+            config, serverManager, headlessManager, Log);
+
+        var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager, connection);
         mainWindow.Show();
     }
 
@@ -71,6 +84,80 @@ public partial class App : System.Windows.Application
         }
 
         return new WatchdogAppConfig();
+    }
+
+    private static WatchdogIdentityConfig LoadWatchdogConfig(string path)
+    {
+        WatchdogIdentityConfig config;
+
+        if (File.Exists(path))
+        {
+            try
+            {
+                var json = File.ReadAllText(path);
+                config = JsonSerializer.Deserialize<WatchdogIdentityConfig>(json) ?? new();
+            }
+            catch
+            {
+                config = new();
+            }
+        }
+        else
+        {
+            config = new();
+        }
+
+        // Auto-generate watchdogId if missing
+        var needsSave = false;
+        if (string.IsNullOrEmpty(config.WatchdogId))
+        {
+            config.WatchdogId = Guid.NewGuid().ToString();
+            needsSave = true;
+        }
+
+        if (needsSave || !File.Exists(path))
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+            }
+            catch { /* best effort */ }
+        }
+
+        return config;
+    }
+
+    /// <summary>
+    /// Resolve server URL: explicit config → HeadlessConfig.json BackendUrl → ServerProcessManager fallback.
+    /// </summary>
+    private static string DiscoverServerUrl(WatchdogIdentityConfig wdConfig, string sptRoot, ServerProcessManager server)
+    {
+        // 1. Explicit watchdog config
+        if (!string.IsNullOrEmpty(wdConfig.ServerUrl))
+            return wdConfig.ServerUrl;
+
+        // 2. HeadlessConfig.json (game root, next to EFT exe)
+        var gameRoot = Path.GetFullPath(Path.Combine(sptRoot, ".."));
+        var headlessConfigPath = Path.Combine(gameRoot, "HeadlessConfig.json");
+        if (File.Exists(headlessConfigPath))
+        {
+            try
+            {
+                var json = File.ReadAllText(headlessConfigPath);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("BackendUrl", out var bu))
+                {
+                    var url = bu.GetString();
+                    if (!string.IsNullOrEmpty(url))
+                        return url;
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        // 3. ServerProcessManager already parsed http.json
+        return server.ServerUrl;
     }
 
     private static void Log(string msg)
