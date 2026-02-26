@@ -38,6 +38,8 @@ public class CommandCenterConnection : IDisposable
     private static readonly HashSet<string> ValidActions = ["start", "stop", "restart"];
 
     public State ConnectionState { get; private set; } = State.Disconnected;
+    public bool HasToken { get; }
+    public bool AuthRejected => _authRejected;
     public event Action<State>? StateChanged;
 
     public CommandCenterConnection(
@@ -61,7 +63,8 @@ public class CommandCenterConnection : IDisposable
             wsBase = "wss://" + baseUri + "/ws/watchdog";
 
         // Append auth token as query parameter
-        if (!string.IsNullOrEmpty(token))
+        HasToken = !string.IsNullOrEmpty(token);
+        if (HasToken)
             _wsUrl = wsBase + "?token=" + Uri.EscapeDataString(token);
         else
             _wsUrl = wsBase;

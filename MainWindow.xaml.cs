@@ -14,6 +14,9 @@ public partial class MainWindow : Window
 {
     private readonly WatchdogAppConfig _config;
     private readonly string _configPath;
+    private readonly WatchdogIdentityConfig _watchdogConfig;
+    private readonly string _watchdogConfigPath;
+    private readonly string _sptRoot;
     private readonly ServerProcessManager _server;
     private readonly HeadlessProcessManager _headless;
     private readonly CommandCenterConnection _connection;
@@ -25,6 +28,8 @@ public partial class MainWindow : Window
     private WinForms.ContextMenuStrip _trayMenu = null!;
     private bool _quitting;
     private string? _updateUrl;
+    private string _tokenSource = "none";
+    private bool _tokenVisible;
 
     // Cached brushes for code-behind status updates
     private static readonly Media.SolidColorBrush GreenBrush = new(Media.Color.FromRgb(0x4a, 0x7c, 0x59));
@@ -34,11 +39,16 @@ public partial class MainWindow : Window
     private static readonly Media.SolidColorBrush DimmedBrush = new(Media.Color.FromRgb(0x7a, 0x70, 0x60));
 
     public MainWindow(WatchdogAppConfig config, string configPath,
+                      WatchdogIdentityConfig watchdogConfig, string watchdogConfigPath,
+                      string sptRoot,
                       ServerProcessManager server, HeadlessProcessManager headless,
                       CommandCenterConnection connection)
     {
         _config = config;
         _configPath = configPath;
+        _watchdogConfig = watchdogConfig;
+        _watchdogConfigPath = watchdogConfigPath;
+        _sptRoot = sptRoot;
         _server = server;
         _headless = headless;
         _connection = connection;
@@ -88,15 +98,36 @@ public partial class MainWindow : Window
         var raids = Math.Clamp(_config.Headless.RestartAfterRaids, 0, 10);
         HdlRaidSlider.Value = raids;
         HdlRaidLabel.Text = raids == 0 ? "Off" : raids.ToString();
+
+        // Security card
+        var tokenValue = DiscoverCurrentToken();
+        TokenPassword.Password = tokenValue;
+        TokenText.Text = tokenValue;
+        UpdateTokenSourcePill();
     }
 
     private void UpdateConnectionStatus(CommandCenterConnection.State state)
     {
+        if (_connection.AuthRejected)
+        {
+            ConnectionLabel.Text = "\u25CF Auth Rejected";
+            ConnectionLabel.Foreground = RedBrush;
+            return;
+        }
+
         switch (state)
         {
             case CommandCenterConnection.State.Connected:
-                ConnectionLabel.Text = "\u25CF Connected";
-                ConnectionLabel.Foreground = GreenBrush;
+                if (_connection.HasToken)
+                {
+                    ConnectionLabel.Text = "\u25CF Authenticated";
+                    ConnectionLabel.Foreground = GreenBrush;
+                }
+                else
+                {
+                    ConnectionLabel.Text = "\u25CF Open Mode";
+                    ConnectionLabel.Foreground = OrangeBrush;
+                }
                 break;
             case CommandCenterConnection.State.Connecting:
                 ConnectionLabel.Text = "\u25CF Connecting...";
@@ -104,7 +135,7 @@ public partial class MainWindow : Window
                 break;
             default:
                 ConnectionLabel.Text = "\u25CF Disconnected";
-                ConnectionLabel.Foreground = RedBrush;
+                ConnectionLabel.Foreground = DimmedBrush;
                 break;
         }
     }
@@ -373,6 +404,108 @@ public partial class MainWindow : Window
         return File.Exists(icoPath)
             ? new Drawing.Icon(icoPath)
             : Drawing.SystemIcons.Application;
+    }
+
+    // ── Token Management ──────────────────────────────────────
+    private string DiscoverCurrentToken()
+    {
+        // Manual override takes priority
+        if (!string.IsNullOrEmpty(_watchdogConfig.Token))
+        {
+            _tokenSource = "manual";
+            return _watchdogConfig.Token;
+        }
+
+        // Auto-discover from watchdog-token.txt
+        var tokenPath = Path.Combine(_sptRoot, "user", "mods", "ZSlayerCommandCenter", "watchdog-token.txt");
+        if (File.Exists(tokenPath))
+        {
+            try
+            {
+                var token = File.ReadAllText(tokenPath).Trim();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _tokenSource = "auto";
+                    return token;
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        _tokenSource = "none";
+        return "";
+    }
+
+    private void UpdateTokenSourcePill()
+    {
+        switch (_tokenSource)
+        {
+            case "auto":
+                TokenSourcePill.Background = GreenBrush;
+                TokenSourceText.Text = "\u25CF Auto";
+                BtnTokenClear.Visibility = Visibility.Collapsed;
+                break;
+            case "manual":
+                TokenSourcePill.Background = OrangeBrush;
+                TokenSourceText.Text = "\u25CF Override";
+                BtnTokenClear.Visibility = Visibility.Visible;
+                break;
+            default:
+                TokenSourcePill.Background = RedBrush;
+                TokenSourceText.Text = "\u25CF None";
+                BtnTokenClear.Visibility = Visibility.Collapsed;
+                break;
+        }
+    }
+
+    private void TokenShow_Click(object sender, RoutedEventArgs e)
+    {
+        _tokenVisible = !_tokenVisible;
+        if (_tokenVisible)
+        {
+            TokenText.Text = TokenPassword.Password;
+            TokenPassword.Visibility = Visibility.Collapsed;
+            TokenText.Visibility = Visibility.Visible;
+            BtnTokenShow.Content = "Hide";
+        }
+        else
+        {
+            TokenPassword.Password = TokenText.Text;
+            TokenText.Visibility = Visibility.Collapsed;
+            TokenPassword.Visibility = Visibility.Visible;
+            BtnTokenShow.Content = "Show";
+        }
+    }
+
+    private void TokenSave_Click(object sender, RoutedEventArgs e)
+    {
+        var token = (_tokenVisible ? TokenText.Text : TokenPassword.Password).Trim();
+        _watchdogConfig.Token = token;
+        SaveWatchdogConfig();
+        _tokenSource = string.IsNullOrEmpty(token) ? "none" : "manual";
+        UpdateTokenSourcePill();
+    }
+
+    private void TokenClear_Click(object sender, RoutedEventArgs e)
+    {
+        _watchdogConfig.Token = "";
+        SaveWatchdogConfig();
+
+        // Re-discover token (should find auto from watchdog-token.txt)
+        var tokenValue = DiscoverCurrentToken();
+        TokenPassword.Password = tokenValue;
+        TokenText.Text = tokenValue;
+        UpdateTokenSourcePill();
+    }
+
+    private void SaveWatchdogConfig()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_watchdogConfig, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_watchdogConfigPath, json);
+        }
+        catch { /* best effort */ }
     }
 
     // ── Config Save (debounced) ──────────────────────────────

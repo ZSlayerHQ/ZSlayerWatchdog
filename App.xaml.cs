@@ -45,7 +45,9 @@ public partial class App : System.Windows.Application
             serverUrl, watchdogConfig.WatchdogId, watchdogConfig.Name,
             token, config, serverManager, headlessManager, Log);
 
-        var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager, connection);
+        var mainWindow = new MainWindow(config, configPath,
+            watchdogConfig, watchdogConfigPath, sptRoot,
+            serverManager, headlessManager, connection);
         mainWindow.Show();
     }
 
