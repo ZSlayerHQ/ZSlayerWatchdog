@@ -40,7 +40,7 @@ public partial class App : System.Windows.Application
         // Create WebSocket connection to CC server
         var connection = new CommandCenterConnection(
             serverUrl, watchdogConfig.WatchdogId, watchdogConfig.Name,
-            config, serverManager, headlessManager, Log);
+            watchdogConfig.Token, config, serverManager, headlessManager, Log);
 
         var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager, connection);
         mainWindow.Show();

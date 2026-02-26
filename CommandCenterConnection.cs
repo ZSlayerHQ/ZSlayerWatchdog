@@ -27,11 +27,15 @@ public class CommandCenterConnection : IDisposable
     private CancellationTokenSource? _cts;
     private int _backoffMs = 5000;
     private const int MaxBackoffMs = 30_000;
+    private bool _authRejected;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true
     };
+
+    private static readonly HashSet<string> ValidTargets = ["sptServer", "headlessClient"];
+    private static readonly HashSet<string> ValidActions = ["start", "stop", "restart"];
 
     public State ConnectionState { get; private set; } = State.Disconnected;
     public event Action<State>? StateChanged;
@@ -40,6 +44,7 @@ public class CommandCenterConnection : IDisposable
         string serverUrl,
         string watchdogId,
         string watchdogName,
+        string token,
         WatchdogAppConfig config,
         ServerProcessManager server,
         HeadlessProcessManager headless,
@@ -47,12 +52,19 @@ public class CommandCenterConnection : IDisposable
     {
         // Convert https:// → wss://, http:// → ws://
         var baseUri = serverUrl.TrimEnd('/');
+        string wsBase;
         if (baseUri.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            _wsUrl = "wss://" + baseUri[8..] + "/ws/watchdog";
+            wsBase = "wss://" + baseUri[8..] + "/ws/watchdog";
         else if (baseUri.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-            _wsUrl = "ws://" + baseUri[7..] + "/ws/watchdog";
+            wsBase = "ws://" + baseUri[7..] + "/ws/watchdog";
         else
-            _wsUrl = "wss://" + baseUri + "/ws/watchdog";
+            wsBase = "wss://" + baseUri + "/ws/watchdog";
+
+        // Append auth token as query parameter
+        if (!string.IsNullOrEmpty(token))
+            _wsUrl = wsBase + "?token=" + Uri.EscapeDataString(token);
+        else
+            _wsUrl = wsBase;
 
         _watchdogId = watchdogId;
         _watchdogName = watchdogName;
@@ -177,6 +189,12 @@ public class CommandCenterConnection : IDisposable
             CloseSocket();
             SetState(State.Disconnected);
 
+            if (_authRejected)
+            {
+                _log("Stopped reconnecting — auth token was rejected. Fix token and restart Watchdog.");
+                break;
+            }
+
             if (ct.IsCancellationRequested) break;
 
             _log($"Reconnecting in {_backoffMs / 1000}s...");
@@ -201,7 +219,15 @@ public class CommandCenterConnection : IDisposable
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    _log("Server closed connection");
+                    if (_ws?.CloseStatus != null && (int)_ws.CloseStatus.Value == 4001)
+                    {
+                        _authRejected = true;
+                        _log("AUTH REJECTED — invalid or missing token. Update token in watchdog-config.json and restart.");
+                    }
+                    else
+                    {
+                        _log("Server closed connection");
+                    }
                     break;
                 }
 
@@ -237,6 +263,14 @@ public class CommandCenterConnection : IDisposable
 
             var target = root.TryGetProperty("target", out var tgt) ? tgt.GetString() ?? "" : "";
             var action = root.TryGetProperty("action", out var act) ? act.GetString() ?? "" : "";
+
+            // Validate command against whitelist
+            if (!ValidTargets.Contains(target) || !ValidActions.Contains(action))
+            {
+                _log($"Rejected invalid command: {target}.{action}");
+                _ = SendCommandResultAsync(target, action, false, $"Rejected — invalid command: {target}.{action}");
+                return;
+            }
 
             _log($"Command received: {target}.{action}");
             ExecuteCommand(target, action);
