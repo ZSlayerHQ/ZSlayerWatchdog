@@ -37,10 +37,13 @@ public partial class App : System.Windows.Application
         // Discover server URL: watchdog-config → HeadlessConfig.json → http.json fallback
         var serverUrl = DiscoverServerUrl(watchdogConfig, sptRoot, serverManager);
 
+        // Discover auth token: watchdog-config override → watchdog-token.txt auto-discovery
+        var token = DiscoverToken(watchdogConfig, sptRoot);
+
         // Create WebSocket connection to CC server
         var connection = new CommandCenterConnection(
             serverUrl, watchdogConfig.WatchdogId, watchdogConfig.Name,
-            watchdogConfig.Token, config, serverManager, headlessManager, Log);
+            token, config, serverManager, headlessManager, Log);
 
         var mainWindow = new MainWindow(config, configPath, serverManager, headlessManager, connection);
         mainWindow.Show();
@@ -158,6 +161,34 @@ public partial class App : System.Windows.Application
 
         // 3. ServerProcessManager already parsed http.json
         return server.ServerUrl;
+    }
+
+    /// <summary>
+    /// Resolve auth token: explicit watchdog-config override → watchdog-token.txt in CC mod folder.
+    /// </summary>
+    private static string DiscoverToken(WatchdogIdentityConfig wdConfig, string sptRoot)
+    {
+        // 1. Explicit override in watchdog-config.json
+        if (!string.IsNullOrEmpty(wdConfig.Token))
+            return wdConfig.Token;
+
+        // 2. Auto-discover from watchdog-token.txt written by CC server mod
+        var tokenPath = Path.Combine(sptRoot, "user", "mods", "ZSlayerCommandCenter", "watchdog-token.txt");
+        if (File.Exists(tokenPath))
+        {
+            try
+            {
+                var token = File.ReadAllText(tokenPath).Trim();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    Log($"Auth token auto-discovered from {tokenPath}");
+                    return token;
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        return "";
     }
 
     private static void Log(string msg)
