@@ -270,6 +270,15 @@ public partial class MainWindow : Window
                     _quitting = true;
                     Close();
                     break;
+                case "dragMove":
+                    ReleaseMouseCapture();
+                    DragMove();
+                    return; // skip PushStateToUI for drag
+                case "toggleMaximize":
+                    WindowState = WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                    break;
 
                 // Command center
                 case "open_command_center":

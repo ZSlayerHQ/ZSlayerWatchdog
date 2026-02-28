@@ -180,10 +180,7 @@ public class ServerProcessManager
             var psi = new ProcessStartInfo(_exePath)
             {
                 WorkingDirectory = _workingDir,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
+                UseShellExecute = true
             };
 
             _process = Process.Start(psi);
@@ -191,10 +188,6 @@ public class ServerProcessManager
             {
                 _process.EnableRaisingEvents = true;
                 _process.Exited += OnProcessExited;
-                _process.OutputDataReceived += OnOutputData;
-                _process.ErrorDataReceived += OnOutputData;
-                _process.BeginOutputReadLine();
-                _process.BeginErrorReadLine();
                 _startedAt = DateTime.UtcNow;
                 lock (_consoleBuffer) _consoleBuffer.Clear();
                 _log($"Server started (PID {_process.Id})");

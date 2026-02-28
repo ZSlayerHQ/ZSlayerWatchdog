@@ -58,8 +58,9 @@ body{
   justify-content:space-between;padding:0 14px;
   background:rgba(12,10,8,.92);backdrop-filter:blur(8px);
   border-bottom:1px solid var(--border);
-  -webkit-app-region:drag;app-region:drag;
+  -webkit-app-region:drag;app-region:drag;cursor:grab;
 }
+.titlebar:active{cursor:grabbing;}
 .tb-brand{display:flex;align-items:center;gap:8px;}
 .tb-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:var(--text-bright);}
 .tb-name b{color:var(--amber);font-weight:700;}
@@ -89,7 +90,7 @@ body{
 .ws-val--r{color:var(--red-bright);text-shadow:0 0 12px var(--red-glow);}
 .ws-val--d{color:var(--text-dim);}
 .wolf-center{width:260px;height:280px;position:relative;flex-shrink:0;}
-.wolf-breath-row{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:5;}
+.wolf-breath-row{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:5;}
 .wb{width:5px;background:var(--amber-dim);border-radius:2px;animation:wb 3s ease-in-out infinite;}
 .wb:nth-child(1){height:3px;animation-delay:0s;}
 .wb:nth-child(2){height:5px;animation-delay:.12s;}
@@ -97,8 +98,8 @@ body{
 .wb:nth-child(4){height:5px;animation-delay:.36s;}
 .wb:nth-child(5){height:3px;animation-delay:.48s;}
 @keyframes wb{0%,100%{opacity:.25;transform:scaleY(1);}50%{opacity:.9;transform:scaleY(2.2);}}
-.sentinel-lbl{position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);
-  font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--text-muted);z-index:5;}
+.sentinel-lbl{text-align:center;margin:0 0 6px 0;
+  font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--text-muted);}
 
 /* ═══ PANELS ROW ═══ */
 .panels{display:flex;gap:12px;flex-shrink:0;}
@@ -131,6 +132,7 @@ body{
 
 /* Stats grid */
 .stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:6px;}
+.stats--5{grid-template-columns:1fr 1fr 1fr 1fr 1fr;}
 .stat{display:flex;flex-direction:column;gap:1px;}
 .stat-l{font-family:'Share Tech Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;}
 .stat-v{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;color:var(--amber);}
@@ -300,7 +302,6 @@ body{
       </div>
       <div class="wolf-center">
         <div class="wolf-breath-row"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
-        <span class="sentinel-lbl">◇ SENTINEL ACTIVE ◇</span>
       </div>
       <div class="wolf-side" style="align-items:flex-start;">
         <div class="ws-row"><span class="ws-lbl">Uptime</span><span class="ws-val ws-val--a" id="wsUptime">00:00:00</span></div>
@@ -308,6 +309,8 @@ body{
         <div class="ws-row"><span class="ws-lbl">Alerts</span><span class="ws-val ws-val--d" id="wsAlerts">0</span></div>
       </div>
     </div>
+
+    <div class="sentinel-lbl">◇ SENTINEL ACTIVE ◇</div>
 
     <!-- Server Panels -->
     <div class="panels">
@@ -320,10 +323,10 @@ body{
         <div class="stats">
           <div class="stat"><span class="stat-l">Uptime</span><span class="stat-v stat-v--d" id="sptUp">--</span></div>
           <div class="stat"><span class="stat-l">PID</span><span class="stat-v stat-v--d" id="sptPid">--</span></div>
-          <div class="stat"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togSptRst" data-hover><div class="toggle-t"></div></div></div>
-          <div class="stat"><span class="stat-l">Auto-Start</span><div class="toggle on" id="togSptAs" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Auto-restart the server if it crashes"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togSptRst" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Start the server automatically when the watchdog launches"><span class="stat-l">Auto-Start</span><div class="toggle on" id="togSptAs" data-hover><div class="toggle-t"></div></div></div>
         </div>
-        <div class="set-row"><span class="set-row-lbl">Session Timeout</span><span class="set-row-val" id="sptTimeout">5 min</span></div>
+        <div class="set-row" title="How long to wait before force-closing an idle server session"><span class="set-row-lbl">Session Timeout</span><span class="set-row-val" id="sptTimeout">5 min</span></div>
         <div class="slider-wrap"><div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb" data-hover></div></div></div>
         <div class="crash-row"><span class="stat-l">Restarts / Crashes Today</span><span class="crash-val nonzero" id="sptCrash">1</span></div>
         <div class="actions">
@@ -339,16 +342,16 @@ body{
           <span class="ph-title"><span class="ph-icon">🖥</span> HEADLESS</span>
           <span class="badge badge--r" id="badgeHL"><span class="badge-dot"></span>Stopped</span>
         </div>
-        <div class="stats">
+        <div class="stats stats--5">
           <div class="stat"><span class="stat-l">Uptime</span><span class="stat-v stat-v--d" id="hlUp">--</span></div>
           <div class="stat"><span class="stat-l">PID</span><span class="stat-v stat-v--d" id="hlPid">--</span></div>
-          <div class="stat"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togHlRst" data-hover><div class="toggle-t"></div></div></div>
-          <div class="stat"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Start the headless client when the watchdog launches"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Auto-restart the headless client if it crashes"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togHlRst" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Restart the headless client after each raid ends"><span class="stat-l">RAR</span><div class="toggle" id="togHlRaid" data-hover><div class="toggle-t"></div></div></div>
         </div>
-        <div class="set-row"><span class="set-row-lbl">Restart After Raids</span><div class="toggle" id="togHlRaid" data-hover><div class="toggle-t"></div></div></div>
         <div class="pair-row">
-          <div class="pair-item"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
-          <div class="pair-item" style="flex:0;"><span class="stat-l">Profile</span><div class="profile-btn" data-hover>⚙</div></div>
+          <div class="pair-item" title="Delay before starting the headless client (allows server to fully load)"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
+          <div class="pair-item" style="flex:0;" title="Profile is auto-read from HeadlessConfig.json"><span class="stat-l">Profile</span><span class="set-row-val" id="hlProfile">--</span></div>
         </div>
         <div class="crash-row"><span class="stat-l">Restarts / Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
         <div class="actions">
@@ -413,6 +416,23 @@ function resize() {
 }
 resize();
 window.addEventListener('resize', resize);
+
+// ═══ TITLEBAR WINDOW DRAG (WebView2 → WPF DragMove) ═══
+(function() {
+  const titlebar = document.querySelector('.titlebar');
+  titlebar.addEventListener('mousedown', e => {
+    if (e.target.closest('.tb-btn')) return;
+    if (e.button === 0 && window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage(JSON.stringify({ action: 'dragMove' }));
+    }
+  });
+  titlebar.addEventListener('dblclick', e => {
+    if (e.target.closest('.tb-btn')) return;
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage(JSON.stringify({ action: 'toggleMaximize' }));
+    }
+  });
+})();
 
 // ═══ MOUSE STATE ═══
 const mouse = { x: W/2, y: H/2, rx: 0.5, ry: 0.5, vx: 0, vy: 0, lastX: W/2, lastY: H/2 };
@@ -495,96 +515,608 @@ function drawGlow() {
   gCtx.fillRect(0, 0, W, H);
 }
 
+// Pulse ring system — sonar heartbeat from wolf's nose
+const pulseRings = [];
+let pulseTimer = 0;
+
+function getPulseConfig() {
+  switch (state.wolfState) {
+    case 'healthy': return { interval: 120, color: [212,160,50], maxR: 500, alpha: 0.22 };
+    case 'vigilant': return { interval: 90, color: [212,160,50], maxR: 540, alpha: 0.28 };
+    case 'alert': return { interval: 40, color: [231,76,60], maxR: 600, alpha: 0.35 };
+    case 'dormant': return { interval: 220, color: [100,80,50], maxR: 400, alpha: 0.12 };
+    default: return { interval: 350, color: [60,50,35], maxR: 300, alpha: 0.06 };
+  }
+}
+
+function drawPulseRings(ctx) {
+  const cfg = getPulseConfig();
+  const ox = wolfCx + shakeX, oy = wolfCy + (-23) * 2.6 + shakeY;
+
+  // Spawn new ring
+  pulseTimer -= df;
+  if (pulseTimer <= 0) {
+    pulseRings.push({ r: 15, life: 1 });
+    pulseTimer = cfg.interval;
+  }
+
+  // Update and draw rings
+  for (let i = pulseRings.length - 1; i >= 0; i--) {
+    const ring = pulseRings[i];
+    ring.r += (1.8 + ring.r * 0.008) * df;
+    ring.life -= (0.006 + ring.r * 0.000015) * df;
+
+    if (ring.life <= 0 || ring.r > cfg.maxR) {
+      pulseRings.splice(i, 1);
+      continue;
+    }
+
+    const ease = ring.life * ring.life;
+    const alpha = ease * cfg.alpha;
+    const width = 1.8 + (1 - ring.life) * 1.2;
+    const [cr, cg, cb] = cfg.color;
+
+    // Sonar sweep — filled gradient band trailing behind the leading edge
+    if (ring.r > 20) {
+      const sweepWidth = Math.min(ring.r * 0.4, 60);
+      const innerR = Math.max(0, ring.r - sweepWidth);
+      const sweep = ctx.createRadialGradient(ox, oy, innerR, ox, oy, ring.r);
+      sweep.addColorStop(0, `rgba(${cr},${cg},${cb},0)`);
+      sweep.addColorStop(0.7, `rgba(${cr},${cg},${cb},${(alpha * 0.15).toFixed(4)})`);
+      sweep.addColorStop(1, `rgba(${cr},${cg},${cb},${(alpha * 0.4).toFixed(4)})`);
+      ctx.beginPath();
+      ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
+      ctx.arc(ox, oy, innerR, 0, Math.PI * 2, true);
+      ctx.fillStyle = sweep;
+      ctx.fill();
+    }
+
+    // Sharp leading edge
+    ctx.beginPath();
+    ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(4)})`;
+    ctx.lineWidth = width;
+    ctx.stroke();
+
+    // Outer glow halo
+    ctx.beginPath();
+    ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${(alpha * 0.25).toFixed(4)})`;
+    ctx.lineWidth = width * 6;
+    ctx.stroke();
+
+    // Push nearby embers outward
+    if (typeof embers !== 'undefined') {
+      for (const e of embers) {
+        const edx = e.x - ox, edy = e.y - oy;
+        const eDist = Math.sqrt(edx * edx + edy * edy);
+        const ringDist = Math.abs(eDist - ring.r);
+        if (ringDist < 18 && eDist > 1) {
+          const push = (18 - ringDist) / 18 * 0.35 * ease * df;
+          e.vx += (edx / eDist) * push;
+          e.vy += (edy / eDist) * push;
+        }
+      }
+    }
+  }
+}
+
 // ═══ WOLF HEAD — LOW POLY MESH ═══
-const wolfCx = W/2, wolfCy = 195;
+const wolfCx = W/2, wolfCy = 280;
+const WOLF_SCALE = 3.9; // head render scale (was 2.6, scaled 1.5x)
 let headAngleX = 0, headAngleY = 0; // target
-let curHeadX = 0, curHeadY = 0; // current (lerped)
+let curHeadX = 0, curHeadY = 0;
 let earPinBack = 0, jawDrop = 0, curEarPin = 0, curJawDrop = 0;
 
-// Define vertices as [x, y, z] relative to wolf center. Groups for animation:
-// 'body'=standard, 'jaw'=breathing+snarl, 'ear_l','ear_r'=tracking+pin, 'nose'=breathing
+// Spring-damper velocities
+let velHeadX = 0, velHeadY = 0;
+let velEarPin = 0, velJawDrop = 0, velEyelid = 0;
+let velEyeLX = 0, velEyeLY = 0, velEyeRX = 0, velEyeRY = 0;
+
+// Spring constants — k = stiffness (pull toward target), d = damping (velocity decay)
+const springHead = { k: 0.07, d: 0.72 };  // responsive, minimal overshoot
+const springEar  = { k: 0.12, d: 0.78 };  // light ears — snappy response
+const springJaw  = { k: 0.10, d: 0.80 };  // medium jaw
+const springLid  = { k: 0.06, d: 0.84 };  // slow gentle eyelids
+const springEye  = { k: 0.14, d: 0.76 };  // snappy once triggered
+
+// 203 vertices from low-poly wolf head (CC-BY-4.0 TlVl8) — Node3 transform applied
+// Groups: body, jaw, ear_l, ear_r, nose
 const V = [
-  // Forehead / crown
-  /*0*/[0, -62, 10, 'body'],
-  /*1*/[-28, -52, 5, 'body'],
-  /*2*/[28, -52, 5, 'body'],
-  /*3*/[-45, -38, 0, 'body'],
-  /*4*/[45, -38, 0, 'body'],
-  /*5*/[-18, -42, 15, 'body'],
-  /*6*/[18, -42, 15, 'body'],
-  // Ears
-  /*7*/[-55, -72, -5, 'ear_l'],
-  /*8*/[-62, -48, -8, 'ear_l'],
-  /*9*/[-42, -50, -2, 'ear_l'],
-  /*10*/[55, -72, -5, 'ear_r'],
-  /*11*/[62, -48, -8, 'ear_r'],
-  /*12*/[42, -50, -2, 'ear_r'],
-  // Eyes zone
-  /*13*/[-24, -28, 18, 'body'],
-  /*14*/[-12, -30, 20, 'body'],
-  /*15*/[-12, -22, 20, 'body'],
-  /*16*/[-26, -22, 16, 'body'],
-  /*17*/[24, -28, 18, 'body'],
-  /*18*/[12, -30, 20, 'body'],
-  /*19*/[12, -22, 20, 'body'],
-  /*20*/[26, -22, 16, 'body'],
-  // Snout bridge
-  /*21*/[0, -30, 24, 'body'],
-  /*22*/[-10, -14, 22, 'body'],
-  /*23*/[10, -14, 22, 'body'],
-  /*24*/[0, -6, 28, 'nose'],
-  /*25*/[-8, 0, 24, 'nose'],
-  /*26*/[8, 0, 24, 'nose'],
-  // Cheeks
-  /*27*/[-38, -16, 8, 'body'],
-  /*28*/[-32, 2, 10, 'body'],
-  /*29*/[38, -16, 8, 'body'],
-  /*30*/[32, 2, 10, 'body'],
-  // Jaw / chin
-  /*31*/[-22, 14, 14, 'jaw'],
-  /*32*/[22, 14, 14, 'jaw'],
-  /*33*/[0, 20, 18, 'jaw'],
-  /*34*/[-16, 24, 10, 'jaw'],
-  /*35*/[16, 24, 10, 'jaw'],
-  /*36*/[0, 30, 12, 'jaw'],
-  // Mouth line
-  /*37*/[-14, 5, 22, 'jaw'],
-  /*38*/[14, 5, 22, 'jaw'],
+  /*0*/ [13.3, 41.8, 0.8, 'jaw'],
+  /*1*/ [8, 52.5, 2.1, 'jaw'],
+  /*2*/ [4, 57.6, 3.4, 'jaw'],
+  /*3*/ [28, -59.6, 3.4, 'ear_r'],
+  /*4*/ [29.1, -58.5, 3.8, 'ear_r'],
+  /*5*/ [27.9, -59.3, 4.1, 'ear_r'],
+  /*6*/ [27.4, -60, 3.6, 'ear_r'],
+  /*7*/ [4.4, -5.8, 53.2, 'body'],
+  /*8*/ [2.9, -5.8, 54.1, 'body'],
+  /*9*/ [3.9, -8.7, 53, 'body'],
+  /*10*/ [0, -30.1, -41.3, 'body'],
+  /*11*/ [9, -46.1, -8.8, 'ear_r'],
+  /*12*/ [0, -47.3, -8, 'body'],
+  /*13*/ [4.1, -22.2, 26.5, 'body'],
+  /*14*/ [-4.1, -22.2, 26.5, 'body'],
+  /*15*/ [0, -8.7, 54.5, 'body'],
+  /*16*/ [6.8, 8.7, 37.1, 'body'],
+  /*17*/ [7.1, 7.7, 38.7, 'body'],
+  /*18*/ [10.9, 6.8, 25.2, 'body'],
+  /*19*/ [12.5, 37, 1.1, 'jaw'],
+  /*20*/ [0, 60, 4.8, 'jaw'],
+  /*21*/ [7.3, 24.9, 0.8, 'jaw'],
+  /*22*/ [6.6, 19.2, 2.8, 'jaw'],
+  /*23*/ [24.1, -32.6, 0.7, 'body'],
+  /*24*/ [25, -34.2, 0.3, 'body'],
+  /*25*/ [25.5, -32.1, -0.2, 'body'],
+  /*26*/ [34.4, -4.6, -4.9, 'body'],
+  /*27*/ [30.3, -6.2, -10.6, 'body'],
+  /*28*/ [28.3, -0.1, -8.8, 'body'],
+  /*29*/ [6.6, -8.3, 49.6, 'body'],
+  /*30*/ [2.7, 11.1, 9.9, 'body'],
+  /*31*/ [0, 11.1, 9.8, 'body'],
+  /*32*/ [0, 9.5, 41.6, 'body'],
+  /*33*/ [24.6, 34.8, -32.3, 'jaw'],
+  /*34*/ [9.4, -5.9, -54.4, 'nose'],
+  /*35*/ [0, -6.3, -54.6, 'nose'],
+  /*36*/ [12.4, -44.3, 6.1, 'ear_r'],
+  /*37*/ [20, -52.7, -3.4, 'ear_r'],
+  /*38*/ [24.3, -51.2, -5.4, 'ear_r'],
+  /*39*/ [26.9, -50.1, -4.7, 'ear_r'],
+  /*40*/ [8.1, 12.5, 6.7, 'body'],
+  /*41*/ [6.4, 10.3, 9.7, 'body'],
+  /*42*/ [7.7, 5.7, 40.3, 'body'],
+  /*43*/ [12.9, 1.5, 32.5, 'body'],
+  /*44*/ [13.6, 1.1, 27.7, 'body'],
+  /*45*/ [30.9, -54.3, 3.7, 'ear_r'],
+  /*46*/ [28.6, -34.7, -2.5, 'body'],
+  /*47*/ [29.8, 32.1, -25.5, 'jaw'],
+  /*48*/ [30.7, 24.4, -28.6, 'jaw'],
+  /*49*/ [30.5, 25.8, -31, 'jaw'],
+  /*50*/ [4.5, -0.5, 49.4, 'body'],
+  /*51*/ [28, -57.2, 4.7, 'ear_r'],
+  /*52*/ [29.7, -51, 3.6, 'ear_r'],
+  /*53*/ [25.7, -51.5, 2, 'ear_r'],
+  /*54*/ [15, -12.9, 23.9, 'body'],
+  /*55*/ [10, -19.7, 21.1, 'body'],
+  /*56*/ [22.2, -24, 15.4, 'body'],
+  /*57*/ [0, -5.6, 54.6, 'body'],
+  /*58*/ [8.1, -6.8, 47.9, 'body'],
+  /*59*/ [16.7, -0.6, 21.5, 'body'],
+  /*60*/ [17, 1.2, 18.2, 'body'],
+  /*61*/ [0, 7.6, 43.2, 'body'],
+  /*62*/ [7.2, 5.1, 44.8, 'body'],
+  /*63*/ [6.1, 5.9, 42.5, 'body'],
+  /*64*/ [10, 8.5, 8.7, 'body'],
+  /*65*/ [18.1, 6.1, 9.8, 'body'],
+  /*66*/ [22.1, 6.7, -3.1, 'body'],
+  /*67*/ [22.6, 6.2, 4, 'body'],
+  /*68*/ [24.5, 5.3, 2.6, 'body'],
+  /*69*/ [15.5, 4.5, 17.2, 'body'],
+  /*70*/ [18.4, 5.8, 10, 'body'],
+  /*71*/ [22.6, 6.1, 4.2, 'body'],
+  /*72*/ [24.7, 4.7, -5.3, 'body'],
+  /*73*/ [11.1, 46.4, -2.7, 'jaw'],
+  /*74*/ [16.2, 38.7, -3.7, 'jaw'],
+  /*75*/ [6.7, 54.6, -4.3, 'jaw'],
+  /*76*/ [27.1, 30.2, -36.5, 'jaw'],
+  /*77*/ [28.1, 35.5, -23.1, 'jaw'],
+  /*78*/ [20.2, 46.1, -21.1, 'jaw'],
+  /*79*/ [24.7, 40.2, -14.9, 'jaw'],
+  /*80*/ [10.5, 51, -5.3, 'jaw'],
+  /*81*/ [26, 11.4, -45.4, 'jaw'],
+  /*82*/ [28.9, 5.1, -18.5, 'body'],
+  /*83*/ [30.5, 11.4, -23.1, 'jaw'],
+  /*84*/ [4.8, -25.8, 24.7, 'body'],
+  /*85*/ [18.3, -30.4, 20, 'body'],
+  /*86*/ [21.9, -27.4, 14.8, 'body'],
+  /*87*/ [26.3, -23.1, 9.2, 'body'],
+  /*88*/ [29.1, -20.1, 5.9, 'body'],
+  /*89*/ [18.4, -43.1, -14.6, 'body'],
+  /*90*/ [11.5, -46.5, -9.1, 'ear_r'],
+  /*91*/ [17.3, -50.5, -5.1, 'ear_r'],
+  /*92*/ [16.1, -18.8, -44.2, 'body'],
+  /*93*/ [21.3, -39.9, -16.2, 'body'],
+  /*94*/ [8.6, -46.3, -5.9, 'ear_r'],
+  /*95*/ [7.9, -44.9, 1, 'ear_r'],
+  /*96*/ [11.4, -43.8, 5.8, 'body'],
+  /*97*/ [26.9, -57.9, 4.9, 'ear_r'],
+  /*98*/ [14, -43.1, 6.9, 'body'],
+  /*99*/ [14.7, -41.2, 7.5, 'body'],
+  /*100*/ [20.7, -40.3, -2.6, 'body'],
+  /*101*/ [26.2, -30.8, -2, 'body'],
+  /*102*/ [27, -31.5, -7.5, 'body'],
+  /*103*/ [26.5, -36.8, 0.7, 'body'],
+  /*104*/ [26.7, -30.4, -4.8, 'body'],
+  /*105*/ [16.5, -43.3, 2.1, 'body'],
+  /*106*/ [21.6, -43.4, -1.6, 'body'],
+  /*107*/ [-13.3, 41.8, 0.8, 'jaw'],
+  /*108*/ [-8, 52.5, 2.1, 'jaw'],
+  /*109*/ [-4, 57.6, 3.4, 'jaw'],
+  /*110*/ [-28, -59.6, 3.4, 'ear_l'],
+  /*111*/ [-29.1, -58.5, 3.8, 'ear_l'],
+  /*112*/ [-27.9, -59.3, 4.1, 'ear_l'],
+  /*113*/ [-27.4, -60, 3.6, 'ear_l'],
+  /*114*/ [-4.4, -5.8, 53.2, 'body'],
+  /*115*/ [-2.9, -5.8, 54.1, 'body'],
+  /*116*/ [-3.9, -8.7, 53, 'body'],
+  /*117*/ [-9, -46.1, -8.8, 'ear_l'],
+  /*118*/ [-2.7, 11.1, 9.9, 'body'],
+  /*119*/ [-6.8, 8.7, 37.1, 'body'],
+  /*120*/ [-7.1, 7.7, 38.7, 'body'],
+  /*121*/ [-10.9, 6.8, 25.2, 'body'],
+  /*122*/ [-12.5, 37, 1.1, 'jaw'],
+  /*123*/ [-7.3, 24.9, 0.8, 'jaw'],
+  /*124*/ [-6.6, 19.2, 2.8, 'jaw'],
+  /*125*/ [-24.1, -32.6, 0.7, 'body'],
+  /*126*/ [-25, -34.2, 0.3, 'body'],
+  /*127*/ [-25.5, -32.1, -0.2, 'body'],
+  /*128*/ [-34.4, -4.6, -4.9, 'body'],
+  /*129*/ [-30.3, -6.2, -10.6, 'body'],
+  /*130*/ [-28.3, -0.1, -8.8, 'body'],
+  /*131*/ [-6.6, -8.3, 49.6, 'body'],
+  /*132*/ [-24.6, 34.8, -32.3, 'jaw'],
+  /*133*/ [-9.4, -5.9, -54.4, 'nose'],
+  /*134*/ [-12.4, -44.3, 6.1, 'ear_l'],
+  /*135*/ [-20, -52.7, -3.4, 'ear_l'],
+  /*136*/ [-24.3, -51.2, -5.4, 'ear_l'],
+  /*137*/ [-26.9, -50.1, -4.7, 'ear_l'],
+  /*138*/ [-8.1, 12.5, 6.7, 'body'],
+  /*139*/ [-6.4, 10.3, 9.7, 'body'],
+  /*140*/ [-7.7, 5.7, 40.3, 'body'],
+  /*141*/ [-12.9, 1.5, 32.5, 'body'],
+  /*142*/ [-13.6, 1.1, 27.7, 'body'],
+  /*143*/ [-30.9, -54.3, 3.7, 'ear_l'],
+  /*144*/ [-28.6, -34.7, -2.5, 'body'],
+  /*145*/ [-29.8, 32.1, -25.5, 'jaw'],
+  /*146*/ [-30.7, 24.4, -28.6, 'jaw'],
+  /*147*/ [-30.5, 25.8, -31, 'jaw'],
+  /*148*/ [-4.5, -0.5, 49.4, 'body'],
+  /*149*/ [-28, -57.2, 4.7, 'ear_l'],
+  /*150*/ [-29.7, -51, 3.6, 'ear_l'],
+  /*151*/ [-25.7, -51.5, 2, 'ear_l'],
+  /*152*/ [-15, -12.9, 23.9, 'body'],
+  /*153*/ [-10, -19.7, 21.1, 'body'],
+  /*154*/ [-22.2, -24, 15.4, 'body'],
+  /*155*/ [-8.1, -6.8, 47.9, 'body'],
+  /*156*/ [-16.7, -0.6, 21.5, 'body'],
+  /*157*/ [-17, 1.2, 18.2, 'body'],
+  /*158*/ [-7.2, 5.1, 44.8, 'body'],
+  /*159*/ [-6.1, 5.9, 42.5, 'body'],
+  /*160*/ [-10, 8.5, 8.7, 'body'],
+  /*161*/ [-18.1, 6.1, 9.8, 'body'],
+  /*162*/ [-22.1, 6.7, -3.1, 'body'],
+  /*163*/ [-22.6, 6.2, 4, 'body'],
+  /*164*/ [-24.5, 5.3, 2.6, 'body'],
+  /*165*/ [-15.5, 4.5, 17.2, 'body'],
+  /*166*/ [-18.4, 5.8, 10, 'body'],
+  /*167*/ [-22.6, 6.1, 4.2, 'body'],
+  /*168*/ [-24.7, 4.7, -5.3, 'body'],
+  /*169*/ [-11.1, 46.4, -2.7, 'jaw'],
+  /*170*/ [-16.2, 38.7, -3.7, 'jaw'],
+  /*171*/ [-6.7, 54.6, -4.3, 'jaw'],
+  /*172*/ [-27.1, 30.2, -36.5, 'jaw'],
+  /*173*/ [-28.1, 35.5, -23.1, 'jaw'],
+  /*174*/ [-20.2, 46.1, -21.1, 'jaw'],
+  /*175*/ [-24.7, 40.2, -14.9, 'jaw'],
+  /*176*/ [-10.5, 51, -5.3, 'jaw'],
+  /*177*/ [-26, 11.4, -45.4, 'jaw'],
+  /*178*/ [-28.9, 5.1, -18.5, 'body'],
+  /*179*/ [-30.5, 11.4, -23.1, 'jaw'],
+  /*180*/ [-4.8, -25.8, 24.7, 'body'],
+  /*181*/ [-18.3, -30.4, 20, 'body'],
+  /*182*/ [-21.9, -27.4, 14.8, 'body'],
+  /*183*/ [-26.3, -23.1, 9.2, 'body'],
+  /*184*/ [-29.1, -20.1, 5.9, 'body'],
+  /*185*/ [-18.4, -43.1, -14.6, 'body'],
+  /*186*/ [-11.5, -46.5, -9.1, 'ear_l'],
+  /*187*/ [-17.3, -50.5, -5.1, 'ear_l'],
+  /*188*/ [-16.1, -18.8, -44.2, 'body'],
+  /*189*/ [-21.3, -39.9, -16.2, 'body'],
+  /*190*/ [-8.6, -46.3, -5.9, 'ear_l'],
+  /*191*/ [-7.9, -44.9, 1, 'ear_l'],
+  /*192*/ [-11.4, -43.8, 5.8, 'body'],
+  /*193*/ [-26.9, -57.9, 4.9, 'ear_l'],
+  /*194*/ [-14, -43.1, 6.9, 'body'],
+  /*195*/ [-14.7, -41.2, 7.5, 'body'],
+  /*196*/ [-20.7, -40.3, -2.6, 'body'],
+  /*197*/ [-26.2, -30.8, -2, 'body'],
+  /*198*/ [-27, -31.5, -7.5, 'body'],
+  /*199*/ [-26.5, -36.8, 0.7, 'body'],
+  /*200*/ [-26.7, -30.4, -4.8, 'body'],
+  /*201*/ [-16.5, -43.3, 2.1, 'body'],
+  /*202*/ [-21.6, -43.4, -1.6, 'body'],
 ];
 
-// Faces [v0, v1, v2] — painter's algorithm sorted at render time
+// 314 faces (neck removed)
 const F = [
-  // Forehead
-  [0,1,5],[0,5,6],[0,6,2],[1,3,5],[2,6,4],
-  // Ears
-  [7,8,9],[10,12,11],
-  // Ear inner (lighter)
-  [7,9,1,'ear_inner'],[10,2,12,'ear_inner'],
-  // Upper face
-  [5,3,13],[5,13,14],[5,14,21],[5,21,6],[6,21,18],[6,18,17],[6,17,4],
-  // Eye sockets (dark)
-  [13,14,15,'socket'],[13,15,16,'socket'],
-  [17,18,19,'socket'],[17,19,20,'socket'],
-  // Snout
-  [14,21,22],[21,23,22],[18,21,23],[22,23,24],[22,24,25],[23,24,26],
-  // Cheeks
-  [3,27,13],[13,27,16],[27,28,16],[16,28,22],[22,28,25],
-  [4,17,29],[17,20,29],[29,20,30],[20,23,30],[30,23,26],
-  // Jaw
-  [28,31,25],[25,31,37],[37,25,24],[24,38,26],[26,38,30],[30,38,32],
-  [37,24,38,'mouth'],[37,31,33],[38,32,33],[37,33,38],
-  [31,34,33],[32,35,33],[34,36,33],[35,36,33],
+[7,9,8],
+  [13,15,14],
+  [16,18,17],
+  [23,25,24],
+  [26,28,27],
+  [7,29,9],
+  [16,32,31],
+  [6,37,36],
+  [3,39,38,'ear_inner'],
+  [42,44,43],
+  [45,25,46],
+  [8,50,7],
+  [51,53,52],
+  [54,56,55],
+  [29,7,58],
+  [59,60,54],
+  [58,7,50],
+  [54,29,58],
+  [50,61,62],
+  [63,62,61],
+  [16,17,32],
+  [32,17,61],
+  [63,61,17],
+  [63,42,62],
+  [16,41,18],
+  [41,64,18],
+  [18,64,65],
+  [64,66,65],
+  [65,66,67],
+  [66,68,67],
+  [17,18,69],
+  [18,65,69],
+  [69,65,70],
+  [67,68,71],
+  [72,28,26],
+  [66,72,68],
+  [72,26,68],
+  [71,68,26],
+  [58,62,43],
+  [50,62,58],
+  [64,40,66],
+  [43,62,42],
+  [13,29,55],
+  [43,44,59],
+  [63,17,42],
+  [44,42,17],
+  [17,69,44],
+  [44,69,59],
+  [59,69,60],
+  [55,84,13],
+  [84,55,85],
+  [55,56,85],
+  [54,55,29],
+  [26,88,71],
+  [87,56,70],
+  [54,60,56],
+  [69,70,60],
+  [70,56,60],
+  [90,91,89,'ear_inner'],
+  [89,91,38,'ear_inner'],
+  [91,37,38,'ear_inner'],
+  [11,94,90,'ear_inner'],
+  [37,91,36,'ear_inner'],
+  [90,94,91,'ear_inner'],
+  [94,95,91,'ear_inner'],
+  [96,91,95],
+  [36,91,96],
+  [97,5,6],
+  [11,12,94,'ear_inner'],
+  [94,12,95],
+  [13,9,29],
+  [85,99,84],
+  [99,96,84],
+  [9,13,15],
+  [23,100,99],
+  [99,85,23],
+  [86,23,85],
+  [86,87,23],
+  [23,87,25],
+  [87,88,25],
+  [25,88,101],
+  [3,4,39],
+  [4,45,39],
+  [45,46,39,'ear_inner'],
+  [102,39,46],
+  [39,102,93],
+  [88,26,101],
+  [27,101,26],
+  [24,25,103],
+  [101,46,25],
+  [104,46,101],
+  [102,46,104],
+  [51,97,53],
+  [97,98,105],
+  [97,105,53],
+  [106,53,105],
+  [100,106,105],
+  [53,52,103],
+  [103,100,24],
+  [100,23,24],
+  [114,116,115],
+  [119,121,120],
+  [125,127,126],
+  [128,130,129],
+  [114,131,116],
+  [119,32,31],
+  [113,135,134],
+  [110,137,136,'ear_inner'],
+  [140,142,141],
+  [143,127,144],
+  [115,148,114],
+  [149,151,150],
+  [152,154,153],
+  [131,114,155],
+  [156,157,152],
+  [155,114,148],
+  [152,131,155],
+  [148,61,158],
+  [159,158,61],
+  [119,120,32],
+  [32,120,61],
+  [159,61,120],
+  [159,140,158],
+  [119,139,121],
+  [139,160,121],
+  [121,160,161],
+  [160,162,161],
+  [161,162,163],
+  [162,164,163],
+  [120,121,165],
+  [121,161,165],
+  [165,161,166],
+  [163,164,167],
+  [168,130,128],
+  [162,168,164],
+  [168,128,164],
+  [167,164,128],
+  [155,158,141],
+  [148,158,155],
+  [160,138,162],
+  [141,158,140],
+  [14,131,153],
+  [141,142,156],
+  [159,120,140],
+  [142,140,120],
+  [120,165,142],
+  [142,165,156],
+  [156,165,157],
+  [153,180,14],
+  [180,153,181],
+  [153,154,181],
+  [152,153,131],
+  [128,184,167],
+  [183,154,166],
+  [152,157,154],
+  [165,166,157],
+  [166,154,157],
+  [186,187,185,'ear_inner'],
+  [185,187,136,'ear_inner'],
+  [187,135,136,'ear_inner'],
+  [117,190,186,'ear_inner'],
+  [135,187,134,'ear_inner'],
+  [186,190,187,'ear_inner'],
+  [190,191,187,'ear_inner'],
+  [192,187,191],
+  [134,187,192],
+  [193,112,113],
+  [117,12,190,'ear_inner'],
+  [190,12,191],
+  [14,116,131],
+  [181,195,180],
+  [195,192,180],
+  [116,14,15],
+  [125,196,195],
+  [195,181,125],
+  [182,125,181],
+  [182,183,125],
+  [125,183,127],
+  [183,184,127],
+  [127,184,197],
+  [110,111,137],
+  [111,143,137],
+  [143,144,137,'ear_inner'],
+  [198,137,144],
+  [137,198,189],
+  [184,128,197],
+  [129,197,128],
+  [126,127,199],
+  [197,144,127],
+  [200,144,197],
+  [198,144,200],
+  [149,193,151],
+  [193,194,201],
+  [193,201,151],
+  [202,151,201],
+  [196,202,201],
+  [151,150,199],
+  [199,196,126],
+  [196,125,126],
+  [12,191,95],
+  [3,5,4],
+  [3,6,5],
+  [8,15,57],
+  [8,9,15],
+  [58,59,54],
+  [58,43,59],
+  [57,50,8],
+  [57,61,50],
+  [65,71,70],
+  [65,67,71],
+  [86,56,87],
+  [86,85,56],
+  [71,87,70],
+  [71,88,87],
+  [38,39,93,'ear_inner'],
+  [38,6,3],
+  [38,37,6,'ear_inner'],
+  [97,36,98],
+  [97,6,36],
+  [36,99,98],
+  [36,96,99],
+  [104,27,102],
+  [104,101,27],
+  [51,45,4],
+  [51,52,45],
+  [45,103,25],
+  [45,52,103],
+  [4,97,51],
+  [4,5,97],
+  [105,99,100],
+  [105,98,99],
+  [106,103,53],
+  [106,100,103],
+  [110,112,111],
+  [110,113,112],
+  [115,15,57],
+  [115,116,15],
+  [155,156,152],
+  [155,141,156],
+  [57,148,115],
+  [57,61,148],
+  [161,167,166],
+  [161,163,167],
+  [182,154,183],
+  [182,181,154],
+  [167,183,166],
+  [167,184,183],
+  [136,137,189,'ear_inner'],
+  [136,113,110],
+  [136,135,113,'ear_inner'],
+  [193,134,194],
+  [193,113,134],
+  [134,195,194],
+  [134,192,195],
+  [200,129,198],
+  [200,197,129],
+  [149,143,111],
+  [149,150,143],
+  [143,199,127],
+  [143,150,199],
+  [111,193,149],
+  [111,112,193],
+  [201,195,196],
+  [201,194,195],
+  [202,199,151],
+  [202,196,199],
+  [13,180,14],
+  [13,84,180],
+  [96,191,192],
+  [96,95,191],
+  [96,180,84],
+  [96,192,180],
 ];
 
-// Face base colours
-const FUR = ['#201c14','#262018','#2a2218','#302818','#3a3020','#342a1c','#282016'];
-const FUR_LIGHT = ['#443828','#504030','#4a3828','#3e3420'];
-const SOCKET_COL = '#100c08';
-const MOUTH_COL = '#0c0a06';
-const EAR_INNER_COL = '#3a2e22';
+// Face base colours — dark wolf palette
+const FUR_DEEP = ['#0c0a08','#0d0b09','#0e0c0a','#0c0b08','#0d0a08'];
+const FUR = ['#12100d','#131110','#14120e','#13110d','#15130f'];
+const FUR_MID = ['#1a1714','#1b1815','#1c1916','#1a1814','#1d1a17'];
+const FUR_LIGHT = ['#1e1b16','#201d18','#211e19','#1f1c17','#221f1a'];
+const FUR_BRIGHT = ['#252118','#27231a','#29251c','#262219','#2a2520'];
+const SOCKET_COL = '#05040a';
+const MOUTH_COL = '#05040a';
+const NOSE_COL = '#0c0a08';
+const EAR_INNER_COL = '#1a1714';
 
 // Light direction (normalized)
-const lightDir = normalize([0.4, -0.6, 0.7]);
+const lightDir = normalize([-0.4, -0.6, 0.7]);
 
 function normalize(v) {
   const l = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
@@ -622,14 +1154,33 @@ function lerpColor(hex, factor) {
   return `rgb(${nr},${ng},${nb})`;
 }
 
+function blendHex(hex1, hex2, t) {
+  const r1 = parseInt(hex1.slice(1,3),16), g1 = parseInt(hex1.slice(3,5),16), b1 = parseInt(hex1.slice(5,7),16);
+  const r2 = parseInt(hex2.slice(1,3),16), g2 = parseInt(hex2.slice(3,5),16), b2 = parseInt(hex2.slice(5,7),16);
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return '#' + ((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+}
+
 // Eye state
 let eyeLX = 0, eyeLY = 0, eyeRX = 0, eyeRY = 0; // current offsets
+
+// Eye reaction delay — variable for lifelike attention
+const EYE_BUF_SIZE = 24; // max buffer (~400ms at 60fps)
+const eyeBufRx = new Float64Array(EYE_BUF_SIZE);
+const eyeBufRy = new Float64Array(EYE_BUF_SIZE);
+let eyeBufIdx = 0;
+eyeBufRx.fill(0.5);
+eyeBufRy.fill(0.5);
+let eyeDelay = 14, eyeDelayTarget = 14, eyeDelayTimer = 0;
 let eyeGlowAlpha = 0.3;
 let eyeColor = '#f0c848';
 let eyelidClose = 0, curEyelid = 0;
 
 // Alert shake
 let shakeX = 0, shakeY = 0, shakeTimer = 0;
+let noseScreenX = W/2, noseScreenY = 280; // updated each frame from transformed nose vertex
 
 // Breath particles
 let breathParts = [];
@@ -639,33 +1190,48 @@ function drawWolf(time) {
 
   const t = time * 0.001;
 
-  // Head tracking target from mouse
-  const targetHX = (mouse.rx - 0.5) * 0.38; // ~±11°
-  const targetHY = (mouse.ry - 0.35) * 0.25;
-  curHeadX += (targetHX - curHeadX) * 0.055;
-  curHeadY += (targetHY - curHeadY) * 0.055;
+  // Head tracking target from mouse — default downward tilt (looking up from under brow)
+  const HEAD_TILT_DEFAULT = -0.04;
+  let targetHX = (mouse.rx - 0.5) * 0.38; // ~±11°
+  let targetHY = (mouse.ry - 0.35) * 0.25 + HEAD_TILT_DEFAULT;
+  // Subtle head drift toward center during eye glance
+  if (typeof eyeGlancing !== 'undefined' && eyeGlancing > 0) {
+    const hg = Math.min(1, eyeGlancing / 15) * 0.3;
+    targetHX *= (1 - hg);
+    targetHY = targetHY * (1 - hg) + HEAD_TILT_DEFAULT * hg;
+  }
+  // Spring-damper head tracking (mass feel — lag, overshoot, settle)
+  velHeadX = (velHeadX + (targetHX - curHeadX) * springHead.k * df) * Math.pow(springHead.d, df);
+  curHeadX = Math.max(-0.25, Math.min(0.25, curHeadX + velHeadX * df));
+  velHeadY = (velHeadY + (targetHY - curHeadY) * springHead.k * df) * Math.pow(springHead.d, df);
+  curHeadY = Math.max(-0.15, Math.min(0.22, curHeadY + velHeadY * df));
 
   // Status-based modifiers
   let breathSpeed = 3;
-  if (state.wolfState === 'healthy') { breathSpeed = 3; eyeColor = '#f0c848'; earPinBack = 0; jawDrop = 0; eyelidClose = 0; }
-  else if (state.wolfState === 'vigilant') { breathSpeed = 2.5; eyeColor = '#e0b040'; earPinBack = 0; jawDrop = 0; eyelidClose = 0; }
-  else if (state.wolfState === 'alert') { breathSpeed = 1.3; eyeColor = '#ff5030'; earPinBack = -0.35; jawDrop = 6; eyelidClose = 0; }
+  if (state.wolfState === 'healthy') { breathSpeed = 3; eyeColor = '#f0c848'; earPinBack = -0.08; jawDrop = 1.5; eyelidClose = 0; }
+  else if (state.wolfState === 'vigilant') { breathSpeed = 2.5; eyeColor = '#e0b040'; earPinBack = -0.15; jawDrop = 2; eyelidClose = 0; }
+  else if (state.wolfState === 'alert') { breathSpeed = 1.3; eyeColor = '#ff4020'; earPinBack = -0.40; jawDrop = 7; eyelidClose = 0; }
   else if (state.wolfState === 'dormant') { breathSpeed = 5; eyeColor = '#8a6a20'; earPinBack = 0.08; jawDrop = 0; eyelidClose = 0; }
   else { breathSpeed = 7; eyeColor = '#604a18'; earPinBack = 0.12; jawDrop = 0; eyelidClose = 1; }
 
-  curEarPin += (earPinBack - curEarPin) * 0.06;
-  curJawDrop += (jawDrop - curJawDrop) * 0.08;
-  curEyelid += (eyelidClose - curEyelid) * 0.04;
+  // Spring-damper expressions (ears snap fast, jaw medium, eyelids gentle)
+  velEarPin = (velEarPin + (earPinBack - curEarPin) * springEar.k * df) * Math.pow(springEar.d, df);
+  curEarPin = Math.max(-0.45, Math.min(0.20, curEarPin + velEarPin * df));
+  velJawDrop = (velJawDrop + (jawDrop - curJawDrop) * springJaw.k * df) * Math.pow(springJaw.d, df);
+  curJawDrop = Math.max(-1, Math.min(8, curJawDrop + velJawDrop * df));
+  velEyelid = (velEyelid + (eyelidClose - curEyelid) * springLid.k * df) * Math.pow(springLid.d, df);
+  curEyelid = Math.max(-0.1, Math.min(1.1, curEyelid + velEyelid * df));
 
   // Breathing
   const breathPhase = Math.sin(t * (2 * Math.PI / breathSpeed));
+  const breathBob = breathPhase * 2.5; // subtle head bob in sync with breathing
 
   // Shake (alert)
   if (shakeTimer > 0) {
     shakeX = (Math.random() - 0.5) * 4;
     shakeY = (Math.random() - 0.5) * 3;
-    shakeTimer -= 16;
-  } else { shakeX *= 0.8; shakeY *= 0.8; }
+    shakeTimer -= 16 * df;
+  } else { shakeX *= Math.pow(0.8, df); shakeY *= Math.pow(0.8, df); }
 
   // Transform vertices
   const transformed = V.map(([bx, by, bz, group]) => {
@@ -675,16 +1241,13 @@ function drawWolf(time) {
     if (group === 'jaw') { y += breathPhase * 1.5 + curJawDrop; }
     if (group === 'nose') { y += breathPhase * 0.8; }
 
-    // Ear pinning
+    // Ear pinning — pivot near ear base (~Y=-46)
     if (group === 'ear_l') {
-      const pinAngle = curEarPin;
-      const cy = by + 50;
-      const dy = y - (-50);
-      y += pinAngle * Math.abs(by + 55) * 0.5;
-      x += pinAngle * 8;
+      y += curEarPin * Math.abs(by + 46) * 0.6;
+      x += curEarPin * 8;
     }
     if (group === 'ear_r') {
-      y += curEarPin * Math.abs(by + 55) * 0.5;
+      y += curEarPin * Math.abs(by + 46) * 0.6;
       x -= curEarPin * 8;
     }
 
@@ -693,8 +1256,8 @@ function drawWolf(time) {
 
     // Scale and translate to screen + shake
     return [
-      wolfCx + rv[0] * 2.6 + shakeX,
-      wolfCy + rv[1] * 2.6 + shakeY,
+      wolfCx + rv[0] * WOLF_SCALE + shakeX,
+      wolfCy + rv[1] * WOLF_SCALE + shakeY + breathBob,
       rv[2]
     ];
   });
@@ -710,22 +1273,42 @@ function drawWolf(time) {
     const [i0, i1, i2, type] = face;
     const p0 = transformed[i0], p1 = transformed[i1], p2 = transformed[i2];
 
-    // Face normal for lighting
-    const e1 = [p1[0]-p0[0], p1[1]-p0[1], (p1[2]||0)-(p0[2]||0)];
-    const e2 = [p2[0]-p0[0], p2[1]-p0[1], (p2[2]||0)-(p0[2]||0)];
-    const n = normalize(cross(e1, e2));
-    let intensity = Math.max(0.15, dot(n, lightDir));
+    // Face normal for lighting (scale Z by 2.6 to match screen-space XY)
+    const e1 = [p1[0]-p0[0], p1[1]-p0[1], ((p1[2]||0)-(p0[2]||0))*WOLF_SCALE];
+    const e2 = [p2[0]-p0[0], p2[1]-p0[1], ((p2[2]||0)-(p0[2]||0))*WOLF_SCALE];
+    let n = normalize(cross(e1, e2));
+    if (n[2] < 0) { n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; } // flip to face viewer
+    let intensity = Math.max(0.3, dot(n, lightDir));
 
     let baseColor;
     if (type === 'socket') baseColor = SOCKET_COL;
     else if (type === 'mouth') baseColor = MOUTH_COL;
+    else if (type === 'nose') baseColor = NOSE_COL;
     else if (type === 'ear_inner') baseColor = EAR_INNER_COL;
     else {
-      const hash = (i0 * 7 + i1 * 13 + i2 * 23) % FUR.length;
-      baseColor = intensity > 0.55 ? FUR_LIGHT[hash % FUR_LIGHT.length] : FUR[hash];
+      const hash = (i0 * 7 + i1 * 13 + i2 * 23);
+      const tiers = [FUR_DEEP, FUR, FUR_MID, FUR_LIGHT, FUR_BRIGHT];
+      const thresholds = [0.3, 0.45, 0.6, 0.75];
+      // Find which two tiers to blend between
+      let tierIdx = 0;
+      let blend = 0;
+      if (intensity <= thresholds[0]) { tierIdx = 0; blend = 0; }
+      else if (intensity >= thresholds[3]) { tierIdx = 3; blend = 1; }
+      else {
+        for (let ti = 0; ti < thresholds.length - 1; ti++) {
+          if (intensity >= thresholds[ti] && intensity < thresholds[ti + 1]) {
+            tierIdx = ti;
+            blend = (intensity - thresholds[ti]) / (thresholds[ti + 1] - thresholds[ti]);
+            break;
+          }
+        }
+      }
+      const colA = tiers[tierIdx][hash % tiers[tierIdx].length];
+      const colB = tiers[tierIdx + 1][hash % tiers[tierIdx + 1].length];
+      baseColor = blendHex(colA, colB, blend);
     }
 
-    const litColor = lerpColor(baseColor, 0.6 + intensity * 1.1);
+    const litColor = lerpColor(baseColor, 0.6 + intensity * 0.5);
 
     wCtx.beginPath();
     wCtx.moveTo(p0[0], p0[1]);
@@ -734,32 +1317,86 @@ function drawWolf(time) {
     wCtx.closePath();
     wCtx.fillStyle = litColor;
     wCtx.fill();
+
+    // Glassy specular
+    const spec = Math.pow(Math.max(0, dot(n, lightDir)), 4);
+    if (spec > 0.03) {
+      wCtx.fillStyle = 'rgba(200,190,170,' + (spec * 0.18).toFixed(4) + ')';
+      wCtx.fill();
+    }
+
+    // State-reactive sheen — slow wave washing across the face
+    const faceCx = (p0[0] + p1[0] + p2[0]) / 3;
+    const faceCy = (p0[1] + p1[1] + p2[1]) / 3;
+    const sheenPhase = t * 0.4; // very slow
+    const sheenWave = Math.sin(sheenPhase + faceCx * 0.008 + faceCy * 0.005)
+                    * Math.sin(sheenPhase * 0.7 - faceCy * 0.006);
+    const sheenAmt = Math.pow(Math.max(0, sheenWave), 2) * 0.05;
+    if (sheenAmt > 0.003) {
+      wCtx.fillStyle = 'rgba(220,180,80,' + sheenAmt.toFixed(4) + ')';
+      wCtx.fill();
+    }
+
     // Subtle edge
-    wCtx.strokeStyle = lerpColor(baseColor, 0.4);
-    wCtx.lineWidth = 0.3;
+    wCtx.strokeStyle = lerpColor(baseColor, 0.35);
+    wCtx.lineWidth = 0.25;
     wCtx.stroke();
   });
 
   // ═══ EYES ═══
-  const eyeOffsets = [[-18*2.6, -25*2.6], [18*2.6, -25*2.6]]; // L, R base positions
+  // Random center glance — eyes snap to screen center every 3-10s
+  if (typeof eyeGlanceTimer === 'undefined') { eyeGlanceTimer = 120 + Math.random() * 360; eyeGlancing = 0; }
+  eyeGlanceTimer -= df;
+  if (eyeGlanceTimer <= 0 && eyeGlancing <= 0) {
+    eyeGlancing = 30 + Math.random() * 120; // hold center gaze for 0.5-2.5s
+    eyeGlanceTimer = 120 + Math.random() * 360; // next glance in 2-8s
+  }
+  if (eyeGlancing > 0) eyeGlancing -= df;
+
+  // Update reaction delay buffer + vary delay for lifelike attention
+  eyeBufRx[eyeBufIdx] = mouse.rx;
+  eyeBufRy[eyeBufIdx] = mouse.ry;
+  eyeBufIdx = (eyeBufIdx + 1) % EYE_BUF_SIZE;
+  eyeDelayTimer -= df;
+  if (eyeDelayTimer <= 0) {
+    eyeDelayTarget = 4 + Math.random() * 7; // 4-11 frames (~66-183ms)
+    eyeDelayTimer = 90 + Math.random() * 180; // shift every 1.5-4.5s
+  }
+  eyeDelay += (eyeDelayTarget - eyeDelay) * (1 - Math.pow(0.98, df));
+  const dFrames = Math.round(Math.max(1, Math.min(EYE_BUF_SIZE - 1, eyeDelay)));
+  const readIdx = (eyeBufIdx - 1 - dFrames + EYE_BUF_SIZE * 2) % EYE_BUF_SIZE;
+  let delayedRx = eyeBufRx[readIdx];
+  let delayedRy = eyeBufRy[readIdx];
+
+  // Override with center target during glance
+  if (eyeGlancing > 0) {
+    const glanceBlend = Math.min(1, eyeGlancing / 15); // smooth in/out
+    delayedRx = delayedRx + (0.5 - delayedRx) * glanceBlend;
+    delayedRy = delayedRy + (0.5 - delayedRy) * glanceBlend;
+  }
+
+  // Eye positions — wide-set wolf eyes (X=±17, Y=-23, Z=19)
+  const eyeOffsets = [[15.5*WOLF_SCALE, -23*WOLF_SCALE], [-15.5*WOLF_SCALE, -23*WOLF_SCALE]]; // R, L
 
   eyeOffsets.forEach(([baseOx, baseOy], idx) => {
     // Transform eye center through head rotation
-    const rotated = rotateVertex([baseOx/2.6, baseOy/2.6, 20], -curHeadY * 0.6, curHeadX);
-    const ex = wolfCx + rotated[0] * 2.6 + shakeX;
-    const ey = wolfCy + rotated[1] * 2.6 + shakeY;
+    const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX);
+    const ex = wolfCx + rotated[0] * WOLF_SCALE + shakeX;
+    const ey = wolfCy + rotated[1] * WOLF_SCALE + shakeY + breathBob;
 
-    // Tracking offset (parallax — near eye moves more)
+    // Tracking offset (parallax — near eye moves more) — uses delayed mouse for reaction time
     const nearFactor = idx === 0 ? (curHeadX > 0 ? 1.3 : 0.8) : (curHeadX < 0 ? 1.3 : 0.8);
-    const targetOx = (mouse.rx - 0.5) * 14 * nearFactor;
-    const targetOy = (mouse.ry - 0.35) * 8;
+    const targetOx = (delayedRx - 0.5) * 14 * nearFactor;
+    const targetOy = (delayedRy - 0.35) * 8;
 
+    // Smooth direct tracking — no spring bounce, just smooth pursuit like real pupils
+    const eyeSmooth = 1 - Math.pow(1 - 0.32, df);
     if (idx === 0) {
-      eyeLX += (targetOx - eyeLX) * 0.09;
-      eyeLY += (targetOy - eyeLY) * 0.09;
+      eyeLX += (targetOx - eyeLX) * eyeSmooth;
+      eyeLY += (targetOy - eyeLY) * eyeSmooth;
     } else {
-      eyeRX += (targetOx - eyeRX) * 0.09;
-      eyeRY += (targetOy - eyeRY) * 0.09;
+      eyeRX += (targetOx - eyeRX) * eyeSmooth;
+      eyeRY += (targetOy - eyeRY) * eyeSmooth;
     }
     const ox = idx === 0 ? eyeLX : eyeRX;
     const oy = idx === 0 ? eyeLY : eyeRY;
@@ -773,64 +1410,102 @@ function drawWolf(time) {
     wCtx.fillStyle = grd;
     wCtx.fillRect(ex - glowSize, ey - glowSize, glowSize*2, glowSize*2);
 
-    // Eye shape (almond)
+    // Eye shape (narrow almond — inner corners tilted down for wolf aggression)
+    const eyeTilt = idx === 0 ? -0.17 : 0.17;
     wCtx.save();
     wCtx.beginPath();
-    wCtx.ellipse(ex, ey, 10, 7, 0, 0, Math.PI*2);
+    wCtx.ellipse(ex, ey, 15, 8, eyeTilt, 0, Math.PI*2);
     wCtx.clip();
 
     // Iris
-    const iGrd = wCtx.createRadialGradient(ex + ox*0.5, ey + oy*0.5, 1, ex + ox*0.5, ey + oy*0.5, 8);
+    const iGrd = wCtx.createRadialGradient(ex + ox*0.5, ey + oy*0.5, 1, ex + ox*0.5, ey + oy*0.5, 12);
     iGrd.addColorStop(0, eyeColor);
     iGrd.addColorStop(0.6, lerpColor(eyeColor.length > 7 ? '#c88a20' : eyeColor, 0.7));
-    iGrd.addColorStop(1, '#2a1a08');
+    iGrd.addColorStop(1, '#2a2520');
     wCtx.fillStyle = iGrd;
     wCtx.fillRect(ex - 12, ey - 10, 24, 20);
 
+    // Golden fire tendrils radiating from pupil
+    const icx = ex + ox*0.55, icy = ey + oy*0.55;
+    const fireSpeed = t * 3;
+    for (let f = 0; f < 14; f++) {
+      const baseAngle = (f / 14) * Math.PI * 2;
+      const flicker = Math.sin(fireSpeed * 2.3 + f * 1.7) * 0.4 + Math.sin(fireSpeed * 3.8 + f * 2.9) * 0.3;
+      const angle = baseAngle + flicker;
+      const len = 5.5 + Math.sin(fireSpeed * 1.8 + f * 2.1) * 3 + Math.sin(fireSpeed * 4.2 + f * 0.7) * 1.5;
+      const width = 1.4 + Math.sin(fireSpeed * 2.6 + f * 3.3) * 0.5;
+
+      const sx = icx + Math.cos(angle) * 3.5;
+      const sy = icy + Math.sin(angle) * 3.5;
+      const ex2 = icx + Math.cos(angle) * len;
+      const ey2 = icy + Math.sin(angle) * len;
+      const midx = (sx + ex2) / 2 + Math.sin(fireSpeed * 5 + f) * 1.5;
+      const midy = (sy + ey2) / 2 + Math.cos(fireSpeed * 4 + f) * 1.5;
+
+      const alpha = 0.6 + Math.sin(fireSpeed * 3 + f * 2) * 0.25;
+      const bright = Math.sin(fireSpeed * 2 + f * 1.3) * 0.5 + 0.5;
+      const r = Math.round(240 + bright * 15);
+      const g = Math.round(150 + bright * 70 - f * 3);
+      const b = Math.round(20 + bright * 30);
+
+      wCtx.beginPath();
+      wCtx.moveTo(sx, sy);
+      wCtx.quadraticCurveTo(midx, midy, ex2, ey2);
+      wCtx.lineWidth = width;
+      wCtx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
+      wCtx.stroke();
+    }
+
+    // Fire glow overlay on iris
+    const fireGlow = 0.15 + Math.sin(fireSpeed * 2) * 0.07;
+    const fGrd = wCtx.createRadialGradient(icx, icy, 1.5, icx, icy, 12);
+    fGrd.addColorStop(0, 'rgba(255,200,60,' + fireGlow.toFixed(3) + ')');
+    fGrd.addColorStop(0.5, 'rgba(240,160,30,' + (fireGlow * 0.6).toFixed(3) + ')');
+    fGrd.addColorStop(1, 'rgba(200,100,10,0)');
+    wCtx.fillStyle = fGrd;
+    wCtx.fillRect(ex - 18, ey - 15, 36, 30);
+
     // Pupil (vertical slit)
-    const pupilWide = (mouse.x > wolfCx - 40 && mouse.x < wolfCx + 40 && mouse.y > wolfCy - 50 && mouse.y < wolfCy + 50) ? 3.5 : 2.2;
+    const pupilWide = (mouse.x > wolfCx - 130 && mouse.x < wolfCx + 130 && mouse.y > wolfCy - 200 && mouse.y < wolfCy + 200) ? 5 : 3.5;
     wCtx.beginPath();
-    wCtx.ellipse(ex + ox*0.6, ey + oy*0.6, pupilWide, 6, 0, 0, Math.PI*2);
+    wCtx.ellipse(ex + ox*0.6, ey + oy*0.6, pupilWide, 9, 0, 0, Math.PI*2);
     wCtx.fillStyle = '#020102';
     wCtx.fill();
 
     // Specular
     wCtx.beginPath();
-    wCtx.arc(ex + ox*0.3 + 3, ey + oy*0.3 - 2, 1.5, 0, Math.PI*2);
+    wCtx.arc(ex + ox*0.3 + 4, ey + oy*0.3 - 3, 2.2, 0, Math.PI*2);
     wCtx.fillStyle = 'rgba(255,255,240,0.7)';
     wCtx.fill();
 
     // Eyelid (closing animation)
     if (curEyelid > 0.01) {
-      wCtx.fillStyle = '#1a1510';
-      wCtx.fillRect(ex - 12, ey - 10, 24, 20 * curEyelid);
+      wCtx.fillStyle = '#1a1714';
+      wCtx.fillRect(ex - 18, ey - 15, 36, 30 * curEyelid);
     }
 
     wCtx.restore();
 
     // Eye outline
     wCtx.beginPath();
-    wCtx.ellipse(ex, ey, 10, 7, 0, 0, Math.PI*2);
-    wCtx.strokeStyle = 'rgba(30,24,16,0.6)';
+    wCtx.ellipse(ex, ey, 15, 8, eyeTilt, 0, Math.PI*2);
+    wCtx.strokeStyle = 'rgba(26,23,20,0.6)';
     wCtx.lineWidth = 1;
     wCtx.stroke();
   });
 
-  // Nose highlight
-  const noseRot = rotateVertex([0, -2, 28], -curHeadY * 0.6, curHeadX);
-  const nx = wolfCx + noseRot[0]*2.6 + shakeX;
-  const ny = wolfCy + noseRot[1]*2.6 + shakeY;
+  // Nose specular — wet highlight at nose tip (V[57])
+  const nx = transformed[57][0];
+  const ny = transformed[57][1];
+  noseScreenX = nx;
+  noseScreenY = ny;
   wCtx.beginPath();
-  wCtx.ellipse(nx, ny, 5, 3.5, 0, 0, Math.PI*2);
-  wCtx.fillStyle = '#0a0808';
-  wCtx.fill();
-  wCtx.beginPath();
-  wCtx.arc(nx-1, ny-1, 1.2, 0, Math.PI*2);
-  wCtx.fillStyle = 'rgba(200,180,150,0.15)';
+  wCtx.arc(nx - 1, ny - 1, 1.5, 0, Math.PI*2);
+  wCtx.fillStyle = 'rgba(255,255,250,0.18)';
   wCtx.fill();
 
   // Breath particles
-  if (Math.random() < 0.03 && state.wolfState !== 'asleep') {
+  if (Math.random() < 0.03 * df && state.wolfState !== 'asleep') {
     for (let i = 0; i < 2; i++) {
       breathParts.push({
         x: nx + (Math.random()-0.5)*6,
@@ -843,7 +1518,7 @@ function drawWolf(time) {
     }
   }
   breathParts = breathParts.filter(p => {
-    p.x += p.vx; p.y += p.vy; p.life -= 0.015;
+    p.x += p.vx * df; p.y += p.vy * df; p.life -= 0.015 * df;
     if (p.life <= 0) return false;
     wCtx.beginPath();
     wCtx.arc(p.x, p.y, p.size, 0, Math.PI*2);
@@ -852,30 +1527,51 @@ function drawWolf(time) {
     return true;
   });
 
-  // Alert snarl lines
+  // Alert snarl — wrinkle lines on snout + tooth hints
   if (state.wolfState === 'alert' && curJawDrop > 2) {
-    const snarlAlpha = Math.min(1, curJawDrop / 6) * 0.5;
-    [[-8, -10], [0, -12], [8, -10]].forEach(([sx, sy]) => {
-      const rv = rotateVertex([sx, sy, 24], curHeadY*0.6, -curHeadX);
-      const px = wolfCx + rv[0]*2.6 + shakeX;
-      const py = wolfCy + rv[1]*2.6 + shakeY;
+    const snarlAlpha = Math.min(1, curJawDrop / 6) * 0.55;
+    // 5 wrinkle lines across snout (Z=48-54)
+    [[-8, -2, 48], [-4, -3, 51], [0, -4, 54], [4, -3, 51], [8, -2, 48]].forEach(([sx, sy, sz]) => {
+      const rv = rotateVertex([sx, sy, sz], -curHeadY*0.6, curHeadX);
+      const px = wolfCx + rv[0]*WOLF_SCALE + shakeX;
+      const py = wolfCy + rv[1]*WOLF_SCALE + shakeY + breathBob;
       wCtx.beginPath();
-      wCtx.moveTo(px-5, py);
-      wCtx.lineTo(px+5, py+1);
-      wCtx.strokeStyle = `rgba(180,140,100,${snarlAlpha})`;
-      wCtx.lineWidth = 0.8;
+      wCtx.moveTo(px-4, py-1);
+      wCtx.lineTo(px+4, py+1);
+      wCtx.strokeStyle = `rgba(160,120,80,${snarlAlpha})`;
+      wCtx.lineWidth = 0.9;
       wCtx.stroke();
     });
+    // Tooth hint triangles when jaw open enough
+    if (curJawDrop > 3) {
+      const toothAlpha = Math.min(1, (curJawDrop - 3) / 4) * 0.7;
+      [[-6, 2, 52], [-2, 1, 55], [2, 1, 55], [6, 2, 52]].forEach(([tx, ty, tz]) => {
+        const rv = rotateVertex([tx, ty, tz], -curHeadY*0.6, curHeadX);
+        const px = wolfCx + rv[0]*WOLF_SCALE + shakeX;
+        const py = wolfCy + rv[1]*WOLF_SCALE + shakeY + breathBob;
+        wCtx.beginPath();
+        wCtx.moveTo(px-1.5, py);
+        wCtx.lineTo(px+1.5, py);
+        wCtx.lineTo(px, py+4);
+        wCtx.closePath();
+        wCtx.fillStyle = `rgba(220,210,190,${toothAlpha})`;
+        wCtx.fill();
+      });
+    }
   }
 }
 
 // ═══ EMBER PARTICLES ═══
 let embers = [];
+let sparks = []; // burst fragments from head collisions
 let dustMotes = [];
 
 function initParticles() {
-  for (let i = 0; i < 45; i++) {
-    embers.push(makeEmber());
+  for (let i = 0; i < 90; i++) {
+    const e = makeEmber();
+    e.age = Math.floor(Math.random() * 120); // pre-age so they appear already faded in
+    e.life = 0.5 + Math.random() * 0.5; // stagger lifetimes
+    embers.push(e);
   }
   for (let i = 0; i < 25; i++) {
     dustMotes.push({
@@ -890,16 +1586,40 @@ function makeEmber(burst) {
   const colors = ['#e87830','#d4a032','#f0c048','#c06020','#b85818'];
   return {
     x: burst ? wolfCx + (Math.random()-0.5)*60 : Math.random()*W,
-    y: burst ? wolfCy : H + Math.random()*20,
+    y: burst ? wolfCy : Math.random() * (H + 40) - 20,
     vx: (burst ? (Math.random()-0.5)*3 : (Math.random()-0.5)*0.4),
     vy: burst ? -(Math.random()*3+1) : -(Math.random()*0.8+0.2),
     size: Math.random()*2.5+0.8,
     color: colors[Math.floor(Math.random()*colors.length)],
     opacity: Math.random()*0.5+0.4,
     life: 1,
+    age: 0,  // fade-in counter
     flare: Math.random() < 0.1 ? 1 : 0,
     flareTimer: 0,
   };
+}
+
+function spawnBurst(x, y, color) {
+  const count = 4 + Math.floor(Math.random() * 4); // 4-7 sparks
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 2.5;
+    sparks.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 0.5, // slight upward bias
+      size: 0.4 + Math.random() * 0.8,
+      color: color,
+      life: 1,
+    });
+  }
+}
+
+// Wolf head collision — approximate as ellipse
+function insideWolfHead(px, py) {
+  const dx = (px - wolfCx) / 82;  // head half-width (scaled 1.5x)
+  const dy = (py - wolfCy) / 112; // head half-height (scaled 1.5x)
+  return (dx*dx + dy*dy) < 1;
 }
 
 function drawParticles(time) {
@@ -913,23 +1633,30 @@ function drawParticles(time) {
     const dist = Math.sqrt(dx*dx+dy*dy);
     if (dist < 80 && dist > 1) {
       const force = (80-dist)/80 * 0.5;
-      e.vx += (dx/dist) * force;
-      e.vy += (dy/dist) * force;
+      e.vx += (dx/dist) * force * df;
+      e.vy += (dy/dist) * force * df;
     }
 
-    e.x += e.vx + Math.sin(t*2 + e.x*0.01)*0.2;
-    e.y += e.vy;
-    e.vx *= 0.99;
-    e.vy *= 0.998;
-    e.life -= 0.003;
+    e.x += (e.vx + Math.sin(t*2 + e.x*0.01)*0.2) * df;
+    e.y += e.vy * df;
+    e.vx *= Math.pow(0.99, df);
+    e.vy *= Math.pow(0.998, df);
+    e.life -= 0.003 * df;
+    e.age += df;
+
+    // Wolf head collision
+    if (e.age > 30 && insideWolfHead(e.x, e.y)) {
+      spawnBurst(e.x, e.y, e.color);
+      return false;
+    }
 
     // Flare
-    if (e.flare && Math.random() < 0.008) e.flareTimer = 15;
-    if (e.flareTimer > 0) e.flareTimer--;
+    if (e.flare && Math.random() < 0.008 * df) e.flareTimer = 15;
+    if (e.flareTimer > 0) e.flareTimer -= df;
 
     if (e.life <= 0 || e.y < -20) return false;
 
-    const alpha = e.opacity * e.life;
+    const alpha = e.opacity * e.life * Math.min(1, e.age / 60); // fade in over ~1s
     const flareBoost = e.flareTimer > 0 ? 1.5 : 1;
     const sz = e.size * flareBoost;
 
@@ -955,12 +1682,34 @@ function drawParticles(time) {
     return true;
   });
 
-  // Replenish
-  while (embers.length < 45) embers.push(makeEmber());
+  // Burst sparks
+  sparks = sparks.filter(s => {
+    s.x += s.vx * df;
+    s.y += s.vy * df;
+    s.vy += 0.04 * df; // slight gravity
+    s.vx *= Math.pow(0.97, df);
+    s.vy *= Math.pow(0.97, df);
+    s.life -= 0.03 * df;
+    if (s.life <= 0) return false;
+
+    pCtx.beginPath();
+    pCtx.arc(s.x, s.y, s.size * s.life, 0, Math.PI*2);
+    pCtx.fillStyle = s.color;
+    pCtx.globalAlpha = s.life * 0.8;
+    pCtx.fill();
+    pCtx.globalAlpha = 1;
+    return true;
+  });
+
+  // Replenish — stagger to avoid visible pop
+  if (embers.length < 90) {
+    embers.push(makeEmber());
+    if (embers.length < 85) embers.push(makeEmber()); // catch up faster if very low
+  }
 
   // Dust motes
   dustMotes.forEach(d => {
-    d.x += d.vx; d.y += d.vy;
+    d.x += d.vx * df; d.y += d.vy * df;
     if (d.x < -10) d.x = W+10;
     if (d.x > W+10) d.x = -10;
     if (d.y < -10) d.y = H+10;
@@ -976,13 +1725,17 @@ initParticles();
 
 // ═══ MAIN LOOP ═══
 let lastTime = 0;
+const BASE_FRAME_MS = 1000 / 60; // reference frame time (60fps)
+let df = 1; // global delta factor
+
 function loop(time) {
   const dt = time - lastTime;
   lastTime = time;
+  df = Math.min(dt / BASE_FRAME_MS, 3); // delta factor, capped to avoid spiral on tab-away
 
   // Cursor ring lag
-  ringX += (mouse.x + winRect.left - ringX) * 0.12;
-  ringY += (mouse.y + winRect.top - ringY) * 0.12;
+  ringX += (mouse.x + winRect.left - ringX) * 0.12 * df;
+  ringY += (mouse.y + winRect.top - ringY) * 0.12 * df;
   // Use pageX for ring (relative to document)
   curRing.style.left = ringX + 'px';
   curRing.style.top = ringY + 'px';
@@ -1009,6 +1762,7 @@ function loop(time) {
   document.getElementById('wsUptime').textContent = formatTime(state.appUptime/1000);
 
   drawGlow();
+  drawPulseRings(gCtx);
   drawWolf(time);
   drawParticles(time);
 
@@ -1233,8 +1987,9 @@ window.updateState = function(s) {
   document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
   document.getElementById('togHlRaid').className = s.headless.restartAfterRaids ? 'toggle on' : 'toggle';
 
-  // Headless start delay
+  // Headless start delay + profile
   document.getElementById('hlDelay').textContent = s.headless.startDelay + 's';
+  document.getElementById('hlProfile').textContent = s.headless.profileName || s.headless.profileId || '--';
 
   // Headless crashes
   const hlCrash = document.getElementById('hlCrash');
