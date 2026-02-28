@@ -58,6 +58,7 @@ body{
   justify-content:space-between;padding:0 14px;
   background:rgba(12,10,8,.92);backdrop-filter:blur(8px);
   border-bottom:1px solid var(--border);
+  -webkit-app-region:drag;app-region:drag;
 }
 .tb-brand{display:flex;align-items:center;gap:8px;}
 .tb-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:var(--text-bright);}
@@ -67,7 +68,7 @@ body{
 .tb-controls{display:flex;gap:1px;}
 .tb-btn{width:36px;height:28px;background:0;border:0;color:var(--text-dim);
   font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  border-radius:3px;transition:all .15s;}
+  border-radius:3px;transition:all .15s;-webkit-app-region:no-drag;app-region:no-drag;}
 .tb-btn:hover{background:var(--bg-elevated);color:var(--text);}
 .tb-btn--x:hover{background:var(--red);color:#fff;}
 
@@ -1015,7 +1016,7 @@ document.addEventListener('mousemove', e => {
 // ── PostMessage helper ──
 function send(action, value) {
   if (window.chrome && window.chrome.webview)
-    window.chrome.webview.postMessage(JSON.stringify({ action, value }));
+    window.chrome.webview.postMessage({ action, value });
 }
 
 // ── Titlebar buttons ──
