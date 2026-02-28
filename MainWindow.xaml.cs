@@ -127,8 +127,7 @@ public partial class MainWindow : Window
                     autoRestart = _config.Watchdog.AutoRestartOnCrash,
                     autoStart = _config.Watchdog.AutoStartServer,
                     sessionTimeout = _config.Watchdog.SessionTimeoutMin,
-                    crashesToday = svr.RestartCount,
-                    consoleLines = _server.GetRecentConsoleLines(6)
+                    crashesToday = svr.RestartCount
                 },
                 headless = new
                 {
@@ -139,8 +138,7 @@ public partial class MainWindow : Window
                     autoStart = _config.Headless.AutoStart,
                     restartAfterRaids = _config.Headless.RestartAfterRaids > 0,
                     startDelay = _config.Headless.AutoStartDelaySec,
-                    crashesToday = hdl.RestartCount,
-                    consoleLines = _headless.GetRecentConsoleLines(6)
+                    crashesToday = hdl.RestartCount
                 },
                 connection = new
                 {

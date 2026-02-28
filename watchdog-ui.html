@@ -73,7 +73,7 @@ body{
 .tb-btn--x:hover{background:var(--red);color:#fff;}
 
 /* ═══ APP CONTENT ═══ */
-.content{position:relative;z-index:10;display:flex;flex-direction:column;padding:12px 16px 10px;gap:10px;height:calc(100% - 36px);}
+.content{position:relative;z-index:10;display:flex;flex-direction:column;padding:10px 16px 8px;gap:8px;height:calc(100% - 36px);}
 
 /* ═══ WOLF ZONE ═══ */
 .wolf-zone{
@@ -101,11 +101,11 @@ body{
   font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--text-muted);}
 
 /* ═══ PANELS ROW ═══ */
-.panels{display:flex;gap:12px;flex:1;min-height:0;}
+.panels{display:flex;gap:12px;flex-shrink:0;}
 
 .panel{
   flex:1;background:var(--bg-card);border:1px solid rgba(200,170,110,0.15);border-radius:6px;
-  padding:14px 16px 12px;position:relative;overflow:hidden;display:flex;flex-direction:column;
+  padding:10px 14px 10px;position:relative;overflow:hidden;display:flex;flex-direction:column;
   transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s,border-color .3s;
   will-change:transform;
 }
@@ -118,7 +118,7 @@ body{
 .panel.crashed::before{background:var(--red-bright);box-shadow:0 0 16px var(--red-glow),0 2px 24px var(--red-glow);}
 .panel:hover{border-color:var(--border-glow);box-shadow:0 4px 20px rgba(0,0,0,.25);}
 
-.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
 .ph-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--text-bright);display:flex;align-items:center;gap:7px;}
 .ph-icon{font-size:13px;opacity:.6;}
 .badge{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:10px;display:flex;align-items:center;gap:5px;}
@@ -130,7 +130,7 @@ body{
 @keyframes bp{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.65);}}
 
 /* Stats grid */
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:6px;}
 .stat{display:flex;flex-direction:column;gap:1px;}
 .stat-l{font-family:'Share Tech Mono',monospace;font-size:7.5px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;}
 .stat-v{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;color:var(--amber);}
@@ -143,31 +143,31 @@ body{
 .toggle.on .toggle-t{left:18px;background:#e8dcc8;box-shadow:0 0 8px rgba(232,220,200,0.4);}
 
 /* Settings rows */
-.set-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;gap:8px;}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:3px 0;gap:8px;}
 .set-row-lbl{font-family:'Share Tech Mono',monospace;font-size:8.5px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;}
 .set-row-val{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;color:var(--text-bright);}
 
 /* Slider */
-.slider-wrap{width:100%;position:relative;padding:6px 0;}
+.slider-wrap{width:100%;position:relative;padding:4px 0;}
 .slider-track{width:100%;height:4px;background:var(--bg-deep);border-radius:2px;position:relative;}
 .slider-fill{height:100%;background:linear-gradient(90deg,var(--amber-dim),var(--amber));border-radius:2px;width:40%;box-shadow:0 0 6px var(--amber-glow);}
 .slider-thumb{width:13px;height:13px;border-radius:50%;background:var(--amber);border:2px solid var(--bg-card);position:absolute;top:50%;left:40%;transform:translate(-50%,-50%);box-shadow:0 0 10px var(--amber-glow);cursor:grab;}
 .slider-thumb:hover{transform:translate(-50%,-50%) scale(1.25);}
 
 /* Crash counter */
-.crash-row{display:flex;flex-direction:column;gap:1px;margin:4px 0;}
-.crash-val{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:800;line-height:1;}
+.crash-row{display:flex;flex-direction:column;gap:1px;margin:2px 0;}
+.crash-val{font-family:'Orbitron',sans-serif;font-size:16px;font-weight:800;line-height:1;}
 .crash-val.zero{color:var(--amber);}
 .crash-val.nonzero{color:var(--ember);text-shadow:0 0 15px var(--ember-glow);}
 
 /* Pair row */
-.pair-row{display:flex;gap:10px;align-items:flex-end;}
+.pair-row{display:flex;gap:8px;align-items:flex-end;}
 .pair-item{flex:1;display:flex;flex-direction:column;gap:1px;}
-.profile-btn{width:36px;height:36px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:16px;}
+.profile-btn{width:30px;height:30px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:14px;}
 .profile-btn:hover{border-color:var(--amber-dim);background:var(--bg-card-hover);}
 
 /* Action buttons */
-.actions{display:flex;gap:7px;margin-top:auto;padding-top:8px;}
+.actions{display:flex;gap:7px;padding-top:6px;}
 .btn{
   flex:1;height:32px;border:1px solid;border-radius:4px;
   font-family:'Orbitron',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:2px;
@@ -205,14 +205,6 @@ body{
   animation:dcPulse 1.5s ease-in-out infinite;
 }
 @keyframes dcPulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--red-glow);}50%{opacity:.4;box-shadow:none;}}
-
-/* ═══ CONSOLE PREVIEW ═══ */
-.console-preview{
-  margin-top:6px;background:rgba(5,4,10,.5);border:1px solid var(--border);border-radius:4px;
-  padding:5px 8px;height:72px;overflow:hidden;
-  font-family:'Share Tech Mono',monospace;font-size:8.5px;line-height:1.5;color:var(--text-dim);
-}
-.console-preview .cl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* ═══ AUTH SECTION (compact single-row) ═══ */
 .auth{
@@ -334,7 +326,6 @@ body{
         <div class="set-row"><span class="set-row-lbl">Session Timeout</span><span class="set-row-val" id="sptTimeout">5 min</span></div>
         <div class="slider-wrap"><div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb" data-hover></div></div></div>
         <div class="crash-row"><span class="stat-l">Crashes Today</span><span class="crash-val nonzero" id="sptCrash">1</span></div>
-        <div class="console-preview" id="sptConsole"></div>
         <div class="actions">
           <button class="btn btn--start" data-hover data-btn="spt-start">START</button>
           <button class="btn btn--stop" data-hover data-btn="spt-stop">STOP</button>
@@ -355,13 +346,12 @@ body{
           <div class="stat"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
         </div>
         <div class="set-row"><span class="set-row-lbl">Restart After Raids</span><span class="set-row-val" id="hlRaid">Off</span></div>
-        <div class="toggle" id="togHlRaid" data-hover style="margin-bottom:6px;"><div class="toggle-t"></div></div>
+        <div class="toggle" id="togHlRaid" data-hover style="margin-bottom:3px;"><div class="toggle-t"></div></div>
         <div class="pair-row">
           <div class="pair-item"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
           <div class="pair-item" style="flex:0;"><span class="stat-l">Profile</span><div class="profile-btn" data-hover>⚙</div></div>
         </div>
         <div class="crash-row"><span class="stat-l">Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
-        <div class="console-preview" id="hlConsole"></div>
         <div class="actions">
           <button class="btn btn--start" data-hover data-btn="hl-start">START</button>
           <button class="btn btn--stop" data-hover data-btn="hl-stop">STOP</button>
@@ -1216,9 +1206,6 @@ window.updateState = function(s) {
   sptCrash.textContent = s.spt.crashesToday;
   sptCrash.className = s.spt.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
 
-  // SPT console preview
-  updateConsolePreview('sptConsole', s.spt.consoleLines);
-
   // SPT button states: START disabled when running, STOP/RESTART disabled when stopped
   document.querySelector('[data-btn="spt-start"]').className = 'btn btn--start' + (s.spt.running ? ' disabled' : '');
   document.querySelector('[data-btn="spt-stop"]').className = 'btn btn--stop' + (!s.spt.running ? ' disabled' : '');
@@ -1257,9 +1244,6 @@ window.updateState = function(s) {
   const hlCrash = document.getElementById('hlCrash');
   hlCrash.textContent = s.headless.crashesToday;
   hlCrash.className = s.headless.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
-
-  // Headless console preview
-  updateConsolePreview('hlConsole', s.headless.consoleLines);
 
   // HL button states
   document.querySelector('[data-btn="hl-start"]').className = 'btn btn--start' + (s.headless.running ? ' disabled' : '');
@@ -1315,22 +1299,6 @@ window.updateState = function(s) {
   updateWolfState();
   updateSentinelLabel();
 };
-
-// ── Console preview helper ──
-function updateConsolePreview(id, lines) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (!lines || lines.length === 0) {
-    el.innerHTML = '<div class="cl" style="color:var(--text-muted);font-style:italic">No output</div>';
-    return;
-  }
-  el.innerHTML = lines.map(l => '<div class="cl">' + escapeHtml(l) + '</div>').join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
 
 // ═══ MAGNETIC BUTTON HOVER ═══
 document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
