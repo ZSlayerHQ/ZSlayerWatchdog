@@ -33,7 +33,7 @@
                            Margin="0,0,75,0"
                            MouseLeftButtonDown="UpdateLink_Click"/>
 
-                <TextBlock x:Name="VersionLabel" Text="v2.4.0"
+                <TextBlock x:Name="VersionLabel" Text=""
                            Foreground="{StaticResource TextMutedBrush}"
                            FontSize="10"
                            HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -282,9 +282,10 @@
                         <TextBlock x:Name="HdlDelayVal" Grid.Column="0"
                                    Style="{StaticResource StatValue}"/>
                         <Button x:Name="BtnHdlProfile" Grid.Column="1"
-                                Content="🤖" Style="{StaticResource GoldButton}"
+                                Content="📁" Style="{StaticResource GoldButton}"
                                 Padding="6,2" MinWidth="0" FontSize="14"
                                 HorizontalAlignment="Left"
+                                ToolTip="Open profiles folder"
                                 Click="HdlProfile_Click"/>
                     </Grid>
 

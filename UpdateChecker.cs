@@ -12,7 +12,7 @@ public static class UpdateChecker
             http.DefaultRequestHeaders.UserAgent.ParseAdd("ZSlayerWatchdog/1.0");
 
             var json = await http.GetStringAsync(
-                "https://api.github.com/repos/ZSlayerHQ/ZSlayerCommandCenter/releases/latest");
+                "https://api.github.com/repos/ZSlayerHQ/ZSlayerWatchdog/releases/latest");
 
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;

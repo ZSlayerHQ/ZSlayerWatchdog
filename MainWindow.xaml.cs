@@ -77,6 +77,7 @@ public partial class MainWindow : Window
 
     private void InitializeValues()
     {
+        VersionLabel.Text = $"v{WatchdogVersion.Version}";
         UpdateConnectionStatus(_connection.ConnectionState);
 
         // Server card
@@ -559,7 +560,7 @@ public partial class MainWindow : Window
     // ── Update Check ─────────────────────────────────────────
     private async void CheckForUpdatesAsync()
     {
-        var result = await UpdateChecker.CheckAsync("2.4.0");
+        var result = await UpdateChecker.CheckAsync(WatchdogVersion.Version);
         if (result is { available: true } update)
         {
             Dispatcher.Invoke(() =>
