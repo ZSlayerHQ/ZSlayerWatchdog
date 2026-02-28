@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using Microsoft.Web.WebView2.Core;
 using Media = System.Windows.Media;
 using WinForms = System.Windows.Forms;
 using Drawing = System.Drawing;
@@ -30,13 +31,10 @@ public partial class MainWindow : Window
     private string? _updateUrl;
     private string _tokenSource = "none";
     private bool _tokenVisible;
-
-    // Cached brushes for code-behind status updates
-    private static readonly Media.SolidColorBrush GreenBrush = new(Media.Color.FromRgb(0x4a, 0x7c, 0x59));
-    private static readonly Media.SolidColorBrush RedBrush = new(Media.Color.FromRgb(0x8b, 0x3a, 0x3a));
-    private static readonly Media.SolidColorBrush OrangeBrush = new(Media.Color.FromRgb(0xc8, 0x7a, 0x3e));
-    private static readonly Media.SolidColorBrush PrimaryBrush = new(Media.Color.FromRgb(0xe8, 0xdc, 0xc8));
-    private static readonly Media.SolidColorBrush DimmedBrush = new(Media.Color.FromRgb(0x7a, 0x70, 0x60));
+    private bool _webViewReady;
+    private bool _pendingCrashEvent;
+    private int _lastSvrCrashes;
+    private int _lastHdlCrashes;
 
     public MainWindow(WatchdogAppConfig config, string configPath,
                       WatchdogIdentityConfig watchdogConfig, string watchdogConfigPath,
@@ -54,17 +52,13 @@ public partial class MainWindow : Window
         _connection = connection;
 
         InitializeComponent();
-        InitializeValues();
-
-        // Wire slider events after InitializeComponent to avoid spurious firing
-        SvrTimeoutSlider.ValueChanged += SvrTimeout_ValueChanged;
-        HdlRaidSlider.ValueChanged += HdlRaid_ValueChanged;
+        InitializeWebView();
 
         BuildTrayIcon();
 
         // Listen for connection state changes (fires from background thread)
         _connection.StateChanged += state =>
-            Dispatcher.Invoke(() => UpdateConnectionStatus(state));
+            Dispatcher.Invoke(() => PushStateToUI());
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _pollTimer.Tick += PollTimer_Tick;
@@ -75,81 +69,218 @@ public partial class MainWindow : Window
         ScheduleAutoStart();
     }
 
-    private void InitializeValues()
+    // ── WebView2 Initialization ─────────────────────────────
+    private async void InitializeWebView()
     {
-        VersionLabel.Text = $"v{WatchdogVersion.Version}";
-        UpdateConnectionStatus(_connection.ConnectionState);
-
-        // Server card
-        SvrAutoRstVal.IsChecked = _config.Watchdog.AutoRestartOnCrash;
-        SvrAutoStartVal.IsChecked = _config.Watchdog.AutoStartServer;
-        var timeout = Math.Clamp(_config.Watchdog.SessionTimeoutMin, 1, 30);
-        SvrTimeoutSlider.Value = timeout;
-        SvrTimeoutLabel.Text = $"{timeout} min";
-
-        // Headless card
-        HdlAutoRstVal.IsChecked = _config.Headless.AutoRestart;
-        HdlAutoStartVal.IsChecked = _config.Headless.AutoStart;
-        TrayToggleVal.IsChecked = _config.Watchdog.MinimizeToTray;
-        HdlDelayVal.Text = $"{_config.Headless.AutoStartDelaySec}s";
-
-        var profileName = _headless.GetStatus().ProfileName;
-        BtnHdlProfile.ToolTip = string.IsNullOrEmpty(profileName) ? "No profile" : $"\U0001F916 {profileName}";
-
-        var raids = Math.Clamp(_config.Headless.RestartAfterRaids, 0, 10);
-        HdlRaidSlider.Value = raids;
-        HdlRaidLabel.Text = raids == 0 ? "Off" : raids.ToString();
-
-        // Security card
-        var tokenValue = DiscoverCurrentToken();
-        TokenPassword.Password = tokenValue;
-        TokenText.Text = tokenValue;
-        UpdateTokenSourcePill();
-    }
-
-    private void UpdateConnectionStatus(CommandCenterConnection.State state)
-    {
-        if (_connection.AuthRejected)
+        try
         {
-            ConnectionLabel.Text = "\u25CF Auth Rejected";
-            ConnectionLabel.Foreground = RedBrush;
-            return;
+            var env = await CoreWebView2Environment.CreateAsync();
+            await webView.EnsureCoreWebView2Async(env);
+
+            webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            webView.CoreWebView2.Settings.IsZoomControlEnabled = false;
+
+            // Handle messages from the HTML frontend
+            webView.CoreWebView2.WebMessageReceived += WebView_MessageReceived;
+
+            // Navigate to the bundled HTML file
+            var exeDir = Path.GetDirectoryName(Environment.ProcessPath) ?? ".";
+            var htmlPath = Path.Combine(exeDir, "watchdog-ui.html");
+            webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
         }
-
-        switch (state)
+        catch (Exception ex)
         {
-            case CommandCenterConnection.State.Connected:
-                if (_connection.HasToken)
-                {
-                    ConnectionLabel.Text = "\u25CF Authenticated";
-                    ConnectionLabel.Foreground = GreenBrush;
-                }
-                else
-                {
-                    ConnectionLabel.Text = "\u25CF Open Mode";
-                    ConnectionLabel.Foreground = OrangeBrush;
-                }
-                break;
-            case CommandCenterConnection.State.Connecting:
-                ConnectionLabel.Text = "\u25CF Connecting...";
-                ConnectionLabel.Foreground = OrangeBrush;
-                break;
-            default:
-                ConnectionLabel.Text = "\u25CF Disconnected";
-                ConnectionLabel.Foreground = DimmedBrush;
-                break;
+            Debug.WriteLine($"WebView2 init failed: {ex.Message}");
         }
     }
 
-    // ── Title bar ────────────────────────────────────────────
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void WebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Left)
-            DragMove();
+        if (e.IsSuccess)
+        {
+            _webViewReady = true;
+            PushStateToUI();
+        }
     }
 
-    private void Minimize_Click(object sender, RoutedEventArgs e)
-        => WindowState = WindowState.Minimized;
+    // ── Push state to HTML frontend ─────────────────────────
+    private async void PushStateToUI()
+    {
+        if (!_webViewReady) return;
+
+        try
+        {
+            var svr = _server.GetStatus();
+            var hdl = _headless.GetStatus();
+            var connState = _connection.ConnectionState;
+
+            var state = new
+            {
+                spt = new
+                {
+                    running = svr.Running,
+                    uptime = svr.Running ? svr.Uptime : "--",
+                    pid = svr.Running ? (svr.Pid?.ToString() ?? "--") : "--",
+                    autoRestart = _config.Watchdog.AutoRestartOnCrash,
+                    autoStart = _config.Watchdog.AutoStartServer,
+                    sessionTimeout = _config.Watchdog.SessionTimeoutMin,
+                    crashesToday = svr.RestartCount
+                },
+                headless = new
+                {
+                    running = hdl.Running,
+                    uptime = hdl.Running ? hdl.Uptime : "--",
+                    pid = hdl.Running ? (hdl.Pid?.ToString() ?? "--") : "--",
+                    autoRestart = _config.Headless.AutoRestart,
+                    autoStart = _config.Headless.AutoStart,
+                    restartAfterRaids = _config.Headless.RestartAfterRaids > 0,
+                    startDelay = _config.Headless.AutoStartDelaySec,
+                    crashesToday = hdl.RestartCount
+                },
+                connection = new
+                {
+                    status = connState == CommandCenterConnection.State.Connected ? "connected" : "disconnected",
+                    authOverride = !string.IsNullOrEmpty(_watchdogConfig.Token)
+                },
+                crashEvent = _pendingCrashEvent
+            };
+
+            _pendingCrashEvent = false;
+
+            var json = JsonSerializer.Serialize(state, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            await webView.CoreWebView2.ExecuteScriptAsync($"updateState({json})");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"PushState error: {ex.Message}");
+        }
+    }
+
+    // ── Handle actions from HTML frontend ────────────────────
+    private void WebView_MessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+    {
+        try
+        {
+            var msg = JsonDocument.Parse(args.WebMessageAsJson);
+            var action = msg.RootElement.GetProperty("action").GetString();
+            var value = msg.RootElement.TryGetProperty("value", out var val) ? val : default;
+
+            switch (action)
+            {
+                // Server controls
+                case "spt_start":
+                    _server.Start();
+                    break;
+                case "spt_stop":
+                    if (_headless.IsRunning) _headless.Stop();
+                    _server.Stop();
+                    break;
+                case "spt_restart":
+                    if (_headless.IsRunning) _headless.Stop();
+                    _server.Restart();
+                    break;
+
+                // Headless controls
+                case "hl_start":
+                    _headless.Start();
+                    break;
+                case "hl_stop":
+                    _headless.Stop();
+                    break;
+                case "hl_restart":
+                    _headless.Restart();
+                    break;
+
+                // Server toggles
+                case "toggle_spt_autorst":
+                    _config.Watchdog.AutoRestartOnCrash = !_config.Watchdog.AutoRestartOnCrash;
+                    DebounceSaveConfig();
+                    break;
+                case "toggle_spt_autostart":
+                    _config.Watchdog.AutoStartServer = !_config.Watchdog.AutoStartServer;
+                    DebounceSaveConfig();
+                    break;
+
+                // Headless toggles
+                case "toggle_hl_autorst":
+                    _config.Headless.AutoRestart = !_config.Headless.AutoRestart;
+                    DebounceSaveConfig();
+                    break;
+                case "toggle_hl_autostart":
+                    _config.Headless.AutoStart = !_config.Headless.AutoStart;
+                    DebounceSaveConfig();
+                    break;
+                case "toggle_hl_raidrestart":
+                    _config.Headless.RestartAfterRaids = _config.Headless.RestartAfterRaids > 0 ? 0 : 1;
+                    DebounceSaveConfig();
+                    break;
+
+                // Session timeout slider
+                case "set_session_timeout":
+                    if (value.ValueKind == JsonValueKind.Number)
+                    {
+                        _config.Watchdog.SessionTimeoutMin = Math.Clamp(value.GetInt32(), 1, 30);
+                        DebounceSaveConfig();
+                    }
+                    break;
+
+                // Auth token
+                case "auth_show":
+                    // Handled client-side (toggles password visibility)
+                    break;
+                case "auth_save":
+                    // Token saving would need the token value passed from the frontend
+                    break;
+                case "auth_clear":
+                    _watchdogConfig.Token = "";
+                    SaveWatchdogConfig();
+                    break;
+
+                // Tray
+                case "toggle_tray":
+                    _config.Watchdog.MinimizeToTray = !_config.Watchdog.MinimizeToTray;
+                    DebounceSaveConfig();
+                    break;
+
+                // Window controls
+                case "minimize":
+                    WindowState = WindowState.Minimized;
+                    break;
+                case "close":
+                    Close();
+                    break;
+                case "quit":
+                    _quitting = true;
+                    Close();
+                    break;
+
+                // Command center
+                case "open_command_center":
+                    Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
+                        { UseShellExecute = true });
+                    break;
+            }
+
+            // Push updated state back after action
+            PushStateToUI();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"WebMessage error: {ex.Message}");
+        }
+    }
+
+    // ── Title bar drag (handled via HTML, but also support native) ──
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseLeftButtonDown(e);
+        // HTML titlebar has -webkit-app-region: drag — WebView2 handles this
+    }
 
     protected override void OnStateChanged(EventArgs e)
     {
@@ -159,103 +290,6 @@ public partial class MainWindow : Window
             WindowState = WindowState.Normal;
         }
         base.OnStateChanged(e);
-    }
-
-    private void Close_Click(object sender, RoutedEventArgs e)
-        => Close();
-
-    // ── Server buttons ───────────────────────────────────────
-    private void SvrStart_Click(object sender, RoutedEventArgs e) => _server.Start();
-    private void SvrStop_Click(object sender, RoutedEventArgs e)
-    {
-        if (_headless.IsRunning) _headless.Stop();
-        _server.Stop();
-    }
-    private void SvrRestart_Click(object sender, RoutedEventArgs e)
-    {
-        if (_headless.IsRunning) _headless.Stop();
-        _server.Restart();
-    }
-
-    // ── Headless buttons ─────────────────────────────────────
-    private void HdlStart_Click(object sender, RoutedEventArgs e) => _headless.Start();
-    private void HdlStop_Click(object sender, RoutedEventArgs e) => _headless.Stop();
-    private void HdlRestart_Click(object sender, RoutedEventArgs e) => _headless.Restart();
-
-    // ── Slider handlers ──────────────────────────────────────
-    private void SvrTimeout_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        var val = (int)e.NewValue;
-        SvrTimeoutLabel.Text = $"{val} min";
-        _config.Watchdog.SessionTimeoutMin = val;
-        DebounceSaveConfig();
-    }
-
-    private void HdlRaid_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        var val = (int)e.NewValue;
-        HdlRaidLabel.Text = val == 0 ? "Off" : val.ToString();
-        _config.Headless.RestartAfterRaids = val;
-        DebounceSaveConfig();
-    }
-
-    private void TrayToggle_Click(object sender, RoutedEventArgs e)
-    {
-        _config.Watchdog.MinimizeToTray = TrayToggleVal.IsChecked == true;
-        DebounceSaveConfig();
-    }
-
-    // ── Toggle handlers ─────────────────────────────────────
-    private void SvrAutoRst_Toggle(object sender, RoutedEventArgs e)
-    {
-        _config.Watchdog.AutoRestartOnCrash = SvrAutoRstVal.IsChecked == true;
-        DebounceSaveConfig();
-    }
-
-    private void SvrAutoStart_Toggle(object sender, RoutedEventArgs e)
-    {
-        _config.Watchdog.AutoStartServer = SvrAutoStartVal.IsChecked == true;
-        DebounceSaveConfig();
-    }
-
-    private void HdlAutoRst_Toggle(object sender, RoutedEventArgs e)
-    {
-        _config.Headless.AutoRestart = HdlAutoRstVal.IsChecked == true;
-        DebounceSaveConfig();
-    }
-
-    private void HdlAutoStart_Toggle(object sender, RoutedEventArgs e)
-    {
-        _config.Headless.AutoStart = HdlAutoStartVal.IsChecked == true;
-        DebounceSaveConfig();
-    }
-
-    // ── Profile button ──────────────────────────────────────
-    private void HdlProfile_Click(object sender, RoutedEventArgs e)
-    {
-        var profilesDir = Path.Combine(_server.SptRoot, "user", "profiles");
-        if (Directory.Exists(profilesDir))
-            Process.Start(new ProcessStartInfo(profilesDir) { UseShellExecute = true });
-    }
-
-    // ── Footer buttons ───────────────────────────────────────
-    private void OpenCC_Click(object sender, RoutedEventArgs e)
-    {
-        Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
-            { UseShellExecute = true });
-    }
-
-    private void Quit_Click(object sender, RoutedEventArgs e)
-    {
-        _quitting = true;
-        Close();
-    }
-
-    // ── Update link ──────────────────────────────────────────
-    private void UpdateLink_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (_updateUrl is not null)
-            Process.Start(new ProcessStartInfo(_updateUrl) { UseShellExecute = true });
     }
 
     // ── Polling Timer ────────────────────────────────────────
@@ -278,87 +312,24 @@ public partial class MainWindow : Window
             _ = _connection.SendStatusAsync();
         }
 
+        // Push state to frontend every tick
+        PushStateToUI();
+
         var svr = _server.GetStatus();
-        UpdateServerCard(svr);
-
         var hdl = _headless.GetStatus();
-        UpdateHeadlessCard(hdl);
 
-        // Headless start only allowed once server webserver is accepting connections
-        BtnHdlStart.IsEnabled = _server.ServerReady && !hdl.Running;
-
-        BtnCC.IsEnabled = svr.Running;
+        // Detect crashes by watching RestartCount increases
+        if (svr.RestartCount > _lastSvrCrashes || hdl.RestartCount > _lastHdlCrashes)
+        {
+            _pendingCrashEvent = true;
+            PushStateToUI();
+        }
+        _lastSvrCrashes = svr.RestartCount;
+        _lastHdlCrashes = hdl.RestartCount;
 
         var svrState = svr.Running ? "Running" : "Stopped";
         var hdlState = hdl.Running ? "Running" : "Stopped";
         _trayIcon.Text = $"ZSlayer Watchdog \u2014 Server: {svrState}, Headless: {hdlState}";
-    }
-
-    private void UpdateServerCard(WatchdogStatus svr)
-    {
-        if (svr.Running)
-        {
-            SvrStatusPill.Background = GreenBrush;
-            SvrStatusText.Text = "\u25CF Running";
-            SvrUptimeVal.Text = svr.Uptime;
-            SvrUptimeVal.Foreground = GreenBrush;
-            SvrPidVal.Text = svr.Pid?.ToString() ?? "--";
-            SvrPidVal.Foreground = DimmedBrush;
-        }
-        else
-        {
-            SvrStatusPill.Background = RedBrush;
-            SvrStatusText.Text = "\u25CF Stopped";
-            SvrUptimeVal.Text = "--";
-            SvrUptimeVal.Foreground = DimmedBrush;
-            SvrPidVal.Text = "--";
-            SvrPidVal.Foreground = DimmedBrush;
-        }
-
-        SvrCrashVal.Text = svr.RestartCount.ToString();
-        SvrCrashVal.Foreground = svr.RestartCount switch
-        {
-            0 => DimmedBrush,
-            1 or 2 => OrangeBrush,
-            _ => RedBrush
-        };
-
-        BtnSvrStart.IsEnabled = !svr.Running;
-        BtnSvrStop.IsEnabled = svr.Running;
-        BtnSvrRestart.IsEnabled = svr.Running;
-    }
-
-    private void UpdateHeadlessCard(HeadlessStatusDto hdl)
-    {
-        if (hdl.Running)
-        {
-            HdlStatusPill.Background = GreenBrush;
-            HdlStatusText.Text = "\u25CF Running";
-            HdlUptimeVal.Text = hdl.Uptime;
-            HdlUptimeVal.Foreground = GreenBrush;
-            HdlPidVal.Text = hdl.Pid?.ToString() ?? "--";
-            HdlPidVal.Foreground = DimmedBrush;
-        }
-        else
-        {
-            HdlStatusPill.Background = RedBrush;
-            HdlStatusText.Text = "\u25CF Stopped";
-            HdlUptimeVal.Text = "--";
-            HdlUptimeVal.Foreground = DimmedBrush;
-            HdlPidVal.Text = "--";
-            HdlPidVal.Foreground = DimmedBrush;
-        }
-
-        HdlCrashVal.Text = hdl.RestartCount.ToString();
-        HdlCrashVal.Foreground = hdl.RestartCount switch
-        {
-            0 => DimmedBrush,
-            1 or 2 => OrangeBrush,
-            _ => RedBrush
-        };
-
-        BtnHdlStop.IsEnabled = hdl.Running;
-        BtnHdlRestart.IsEnabled = hdl.Running;
     }
 
     // ── System Tray ──────────────────────────────────────────
@@ -437,68 +408,6 @@ public partial class MainWindow : Window
         return "";
     }
 
-    private void UpdateTokenSourcePill()
-    {
-        switch (_tokenSource)
-        {
-            case "auto":
-                TokenSourcePill.Background = GreenBrush;
-                TokenSourceText.Text = "\u25CF Auto";
-                BtnTokenClear.Visibility = Visibility.Collapsed;
-                break;
-            case "manual":
-                TokenSourcePill.Background = OrangeBrush;
-                TokenSourceText.Text = "\u25CF Override";
-                BtnTokenClear.Visibility = Visibility.Visible;
-                break;
-            default:
-                TokenSourcePill.Background = RedBrush;
-                TokenSourceText.Text = "\u25CF None";
-                BtnTokenClear.Visibility = Visibility.Collapsed;
-                break;
-        }
-    }
-
-    private void TokenShow_Click(object sender, RoutedEventArgs e)
-    {
-        _tokenVisible = !_tokenVisible;
-        if (_tokenVisible)
-        {
-            TokenText.Text = TokenPassword.Password;
-            TokenPassword.Visibility = Visibility.Collapsed;
-            TokenText.Visibility = Visibility.Visible;
-            BtnTokenShow.Content = "Hide";
-        }
-        else
-        {
-            TokenPassword.Password = TokenText.Text;
-            TokenText.Visibility = Visibility.Collapsed;
-            TokenPassword.Visibility = Visibility.Visible;
-            BtnTokenShow.Content = "Show";
-        }
-    }
-
-    private void TokenSave_Click(object sender, RoutedEventArgs e)
-    {
-        var token = (_tokenVisible ? TokenText.Text : TokenPassword.Password).Trim();
-        _watchdogConfig.Token = token;
-        SaveWatchdogConfig();
-        _tokenSource = string.IsNullOrEmpty(token) ? "none" : "manual";
-        UpdateTokenSourcePill();
-    }
-
-    private void TokenClear_Click(object sender, RoutedEventArgs e)
-    {
-        _watchdogConfig.Token = "";
-        SaveWatchdogConfig();
-
-        // Re-discover token (should find auto from watchdog-token.txt)
-        var tokenValue = DiscoverCurrentToken();
-        TokenPassword.Password = tokenValue;
-        TokenText.Text = tokenValue;
-        UpdateTokenSourcePill();
-    }
-
     private void SaveWatchdogConfig()
     {
         try
@@ -563,13 +472,7 @@ public partial class MainWindow : Window
         var result = await UpdateChecker.CheckAsync(WatchdogVersion.Version);
         if (result is { available: true } update)
         {
-            Dispatcher.Invoke(() =>
-            {
-                _updateUrl = update.url;
-                UpdateLink.Text = $"\u2B06 {update.tag}";
-                UpdateLink.Visibility = Visibility.Visible;
-                VersionLabel.Visibility = Visibility.Collapsed;
-            });
+            _updateUrl = update.url;
         }
     }
 
