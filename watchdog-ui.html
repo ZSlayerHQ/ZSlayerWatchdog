@@ -73,12 +73,12 @@ body{
 .tb-btn--x:hover{background:var(--red);color:#fff;}
 
 /* ═══ APP CONTENT ═══ */
-.content{position:relative;z-index:10;display:flex;flex-direction:column;padding:10px 16px 8px;gap:8px;height:calc(100% - 36px);}
+.content{position:relative;z-index:10;display:flex;flex-direction:column;padding:10px 16px 8px;gap:8px;height:calc(100% - 36px);overflow:hidden;}
 
 /* ═══ WOLF ZONE ═══ */
 .wolf-zone{
-  display:flex;align-items:center;justify-content:center;min-height:175px;flex:1;
-  position:relative;gap:30px;
+  display:flex;align-items:center;justify-content:center;flex:1;min-height:0;
+  position:relative;gap:30px;overflow:hidden;
 }
 .wolf-side{display:flex;flex-direction:column;gap:8px;min-width:130px;}
 .ws-row{display:flex;flex-direction:column;gap:2px;}
