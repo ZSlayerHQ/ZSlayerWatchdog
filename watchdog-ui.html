@@ -77,8 +77,8 @@ body{
 
 /* ═══ WOLF ZONE ═══ */
 .wolf-zone{
-  display:flex;align-items:flex-end;justify-content:center;flex:1;min-height:0;
-  position:relative;gap:55px;overflow:hidden;padding-bottom:6px;
+  display:flex;align-items:center;justify-content:center;flex:1;min-height:0;
+  position:relative;gap:55px;overflow:hidden;
 }
 .wolf-side{display:flex;flex-direction:column;gap:8px;min-width:130px;}
 .ws-row{display:flex;flex-direction:column;gap:2px;}
@@ -88,7 +88,7 @@ body{
 .ws-val--g{color:var(--green-bright);text-shadow:0 0 12px var(--green-glow);}
 .ws-val--r{color:var(--red-bright);text-shadow:0 0 12px var(--red-glow);}
 .ws-val--d{color:var(--text-dim);}
-.wolf-center{width:260px;height:250px;position:relative;}
+.wolf-center{width:260px;height:280px;position:relative;flex-shrink:0;}
 .wolf-breath-row{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:3px;}
 .wb{width:5px;background:var(--amber-dim);border-radius:2px;animation:wb 3s ease-in-out infinite;}
 .wb:nth-child(1){height:3px;animation-delay:0s;}
@@ -497,7 +497,7 @@ function drawGlow() {
 }
 
 // ═══ WOLF HEAD — LOW POLY MESH ═══
-const wolfCx = W/2, wolfCy = 160;
+const wolfCx = W/2, wolfCy = 195;
 let headAngleX = 0, headAngleY = 0; // target
 let curHeadX = 0, curHeadY = 0; // current (lerped)
 let earPinBack = 0, jawDrop = 0, curEarPin = 0, curJawDrop = 0;
