@@ -19,6 +19,8 @@ public class ServerProcessManager
     private bool _available;
     private bool _stopping;
     private CancellationTokenSource? _readinessCts;
+    private readonly List<string> _consoleBuffer = new();
+    private const int MaxConsoleLines = 50;
 
     private static readonly HttpClient _httpClient = new(new HttpClientHandler
     {
@@ -178,7 +180,10 @@ public class ServerProcessManager
             var psi = new ProcessStartInfo(_exePath)
             {
                 WorkingDirectory = _workingDir,
-                UseShellExecute = true
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
             };
 
             _process = Process.Start(psi);
@@ -186,7 +191,12 @@ public class ServerProcessManager
             {
                 _process.EnableRaisingEvents = true;
                 _process.Exited += OnProcessExited;
+                _process.OutputDataReceived += OnOutputData;
+                _process.ErrorDataReceived += OnOutputData;
+                _process.BeginOutputReadLine();
+                _process.BeginErrorReadLine();
                 _startedAt = DateTime.UtcNow;
+                lock (_consoleBuffer) _consoleBuffer.Clear();
                 _log($"Server started (PID {_process.Id})");
                 StartReadinessProbe();
             }
@@ -298,6 +308,26 @@ public class ServerProcessManager
         if (ts.TotalMinutes >= 1)
             return $"{ts.Minutes}m {ts.Seconds}s";
         return $"{ts.Seconds}s";
+    }
+
+    private void OnOutputData(object sender, DataReceivedEventArgs e)
+    {
+        if (e.Data == null) return;
+        lock (_consoleBuffer)
+        {
+            _consoleBuffer.Add(e.Data);
+            while (_consoleBuffer.Count > MaxConsoleLines)
+                _consoleBuffer.RemoveAt(0);
+        }
+    }
+
+    public List<string> GetRecentConsoleLines(int count = 8)
+    {
+        lock (_consoleBuffer)
+        {
+            var start = Math.Max(0, _consoleBuffer.Count - count);
+            return _consoleBuffer.GetRange(start, _consoleBuffer.Count - start);
+        }
     }
 
     private void OnProcessExited(object? sender, EventArgs e)

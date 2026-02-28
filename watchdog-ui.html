@@ -104,14 +104,18 @@ body{
 .panels{display:flex;gap:12px;flex:1;min-height:0;}
 
 .panel{
-  flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;
+  flex:1;background:var(--bg-card);border:1px solid rgba(200,170,110,0.15);border-radius:6px;
   padding:14px 16px 12px;position:relative;overflow:hidden;display:flex;flex-direction:column;
   transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s,border-color .3s;
   will-change:transform;
 }
 .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:6px 6px 0 0;transition:background .4s,box-shadow .4s;}
+.panel.running{border-color:#4a7c59;}
 .panel.running::before{background:var(--green);box-shadow:0 0 12px var(--green-glow),0 2px 20px var(--green-glow);}
+.panel.stopped{border-color:rgba(200,170,110,0.15);}
 .panel.stopped::before{background:var(--red);box-shadow:0 0 12px var(--red-glow),0 2px 20px var(--red-glow);}
+.panel.crashed{border-color:#8b3a3a;}
+.panel.crashed::before{background:var(--red-bright);box-shadow:0 0 16px var(--red-glow),0 2px 24px var(--red-glow);}
 .panel:hover{border-color:var(--border-glow);box-shadow:0 4px 20px rgba(0,0,0,.25);}
 
 .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -133,10 +137,10 @@ body{
 .stat-v--d{color:var(--text-dim);}
 
 /* Toggle */
-.toggle{width:34px;height:17px;background:var(--bg-deep);border:1px solid var(--border);border-radius:9px;position:relative;cursor:pointer;transition:all .3s;flex-shrink:0;}
-.toggle.on{background:rgba(212,160,50,.18);border-color:var(--amber-dim);}
-.toggle-t{width:13px;height:13px;border-radius:50%;background:var(--text-dim);position:absolute;top:1px;left:1px;transition:all .3s cubic-bezier(.16,1,.3,1);}
-.toggle.on .toggle-t{left:18px;background:var(--amber);box-shadow:0 0 8px var(--amber-glow);}
+.toggle{width:34px;height:17px;background:#2a2520;border:1px solid var(--border);border-radius:9px;position:relative;cursor:pointer;transition:all .3s;flex-shrink:0;}
+.toggle.on{background:var(--amber);border-color:var(--amber);}
+.toggle-t{width:13px;height:13px;border-radius:50%;background:#7a7060;position:absolute;top:1px;left:1px;transition:all .3s cubic-bezier(.16,1,.3,1);}
+.toggle.on .toggle-t{left:18px;background:#e8dcc8;box-shadow:0 0 8px rgba(232,220,200,0.4);}
 
 /* Settings rows */
 .set-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;gap:8px;}
@@ -172,36 +176,59 @@ body{
   transition:all .25s cubic-bezier(.16,1,.3,1);will-change:transform;background:transparent;
 }
 .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.04) 0%,transparent 50%);pointer-events:none;}
-.btn--start{border-color:rgba(76,175,80,.25);color:var(--green-bright);}
-.btn--start:hover{background:rgba(76,175,80,.1);border-color:var(--green);box-shadow:0 0 14px var(--green-glow),inset 0 0 14px rgba(76,175,80,.04);transform:translateY(-1px);}
+.btn--start{border-color:#4a7c59;color:var(--green-bright);background:#2a2520;}
+.btn--start:hover{background:rgba(76,175,80,.15);border-color:var(--green);box-shadow:0 0 14px var(--green-glow),inset 0 0 14px rgba(76,175,80,.04);transform:translateY(-1px);}
 .btn--start:active{transform:translateY(1px) scale(.97);}
-.btn--stop{border-color:rgba(231,76,60,.25);color:var(--red-bright);}
-.btn--stop:hover{background:rgba(231,76,60,.1);border-color:var(--red);box-shadow:0 0 14px var(--red-glow),inset 0 0 14px rgba(231,76,60,.04);transform:translateY(-1px);}
+.btn--stop{border-color:#8b3a3a;color:var(--red-bright);background:#2a2520;}
+.btn--stop:hover{background:rgba(231,76,60,.15);border-color:var(--red);box-shadow:0 0 14px var(--red-glow),inset 0 0 14px rgba(231,76,60,.04);transform:translateY(-1px);}
 .btn--stop:active{transform:translateY(1px) scale(.97);}
-.btn--restart{border-color:rgba(212,160,50,.25);color:var(--amber-bright);}
-.btn--restart:hover{background:rgba(212,160,50,.1);border-color:var(--amber);box-shadow:0 0 14px var(--amber-glow),inset 0 0 14px rgba(212,160,50,.04);transform:translateY(-1px);}
+.btn--restart{border-color:#c87a3e;color:var(--amber-bright);background:#2a2520;}
+.btn--restart:hover{background:rgba(212,160,50,.15);border-color:var(--amber);box-shadow:0 0 14px var(--amber-glow),inset 0 0 14px rgba(212,160,50,.04);transform:translateY(-1px);}
 .btn--restart:active{transform:translateY(1px) scale(.97);}
+.btn.disabled{opacity:0.4;pointer-events:none;}
 
 /* Ripple */
 .ripple{position:absolute;border-radius:50%;transform:scale(0);animation:rip .55s ease-out forwards;pointer-events:none;}
 @keyframes rip{to{transform:scale(4);opacity:0;}}
 
-/* ═══ AUTH SECTION ═══ */
+/* ═══ DISCONNECT BANNER ═══ */
+.disconnect-banner{
+  display:none;position:relative;z-index:20;height:28px;
+  background:rgba(192,57,43,.12);border-bottom:1px solid rgba(192,57,43,.3);
+  font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;
+  color:var(--red-bright);
+  align-items:center;justify-content:center;gap:6px;flex-shrink:0;
+}
+.disconnect-banner.show{display:flex;}
+.disconnect-banner .dc-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--red-bright);
+  animation:dcPulse 1.5s ease-in-out infinite;
+}
+@keyframes dcPulse{0%,100%{opacity:1;box-shadow:0 0 4px var(--red-glow);}50%{opacity:.4;box-shadow:none;}}
+
+/* ═══ CONSOLE PREVIEW ═══ */
+.console-preview{
+  margin-top:6px;background:rgba(5,4,10,.5);border:1px solid var(--border);border-radius:4px;
+  padding:5px 8px;height:72px;overflow:hidden;
+  font-family:'Share Tech Mono',monospace;font-size:8.5px;line-height:1.5;color:var(--text-dim);
+}
+.console-preview .cl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ═══ AUTH SECTION (compact single-row) ═══ */
 .auth{
   background:var(--bg-card);border:1px solid var(--border);border-radius:6px;
-  padding:12px 16px 10px;flex-shrink:0;
+  padding:8px 14px;flex-shrink:0;
   transition:border-color .3s;
 }
 .auth:hover{border-color:var(--border-glow);}
-.auth-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.auth-title{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-bright);display:flex;align-items:center;gap:7px;}
-.auth-title-icon{font-size:12px;opacity:.6;}
-.override-badge{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:10px;background:rgba(76,175,80,.1);color:var(--green-bright);border:1px solid rgba(76,175,80,.2);display:flex;align-items:center;gap:5px;}
 .auth-row{display:flex;gap:8px;align-items:center;}
-.auth-input{flex:1;height:32px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;padding:0 12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);letter-spacing:2px;outline:none;transition:border-color .2s,box-shadow .2s;}
+.auth-lbl{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-bright);white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.auth-lbl-icon{font-size:11px;opacity:.6;}
+.override-badge{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 8px;border-radius:8px;background:rgba(76,175,80,.1);color:var(--green-bright);border:1px solid rgba(76,175,80,.2);display:flex;align-items:center;gap:4px;}
+.auth-input{flex:1;height:28px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;padding:0 10px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text);letter-spacing:2px;outline:none;transition:border-color .2s,box-shadow .2s;min-width:0;}
 .auth-input:focus{border-color:var(--amber-dim);box-shadow:0 0 8px rgba(212,160,50,.15);}
-.auth-btns{display:flex;gap:5px;}
-.abtn{height:32px;padding:0 14px;border:1px solid;border-radius:4px;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:600;letter-spacing:1.5px;cursor:pointer;background:transparent;transition:all .25s;will-change:transform;position:relative;overflow:hidden;}
+.auth-btns{display:flex;gap:4px;}
+.abtn{height:28px;padding:0 12px;border:1px solid;border-radius:4px;font-family:'Orbitron',sans-serif;font-size:8px;font-weight:600;letter-spacing:1.5px;cursor:pointer;background:transparent;transition:all .25s;will-change:transform;position:relative;overflow:hidden;}
 .abtn--show{border-color:rgba(212,160,50,.25);color:var(--amber-bright);}
 .abtn--show:hover{background:rgba(212,160,50,.1);border-color:var(--amber);box-shadow:0 0 12px var(--amber-glow);transform:translateY(-1px);}
 .abtn--save{border-color:rgba(76,175,80,.25);color:var(--green-bright);}
@@ -266,6 +293,9 @@ body{
     </div>
   </div>
 
+  <!-- Disconnect Banner -->
+  <div class="disconnect-banner" id="dcBanner"><span class="dc-dot"></span>DISCONNECTED FROM COMMAND CENTER</div>
+
   <!-- Content -->
   <div class="content">
 
@@ -304,6 +334,7 @@ body{
         <div class="set-row"><span class="set-row-lbl">Session Timeout</span><span class="set-row-val" id="sptTimeout">5 min</span></div>
         <div class="slider-wrap"><div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb" data-hover></div></div></div>
         <div class="crash-row"><span class="stat-l">Crashes Today</span><span class="crash-val nonzero" id="sptCrash">1</span></div>
+        <div class="console-preview" id="sptConsole"></div>
         <div class="actions">
           <button class="btn btn--start" data-hover data-btn="spt-start">START</button>
           <button class="btn btn--stop" data-hover data-btn="spt-stop">STOP</button>
@@ -330,6 +361,7 @@ body{
           <div class="pair-item" style="flex:0;"><span class="stat-l">Profile</span><div class="profile-btn" data-hover>⚙</div></div>
         </div>
         <div class="crash-row"><span class="stat-l">Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
+        <div class="console-preview" id="hlConsole"></div>
         <div class="actions">
           <button class="btn btn--start" data-hover data-btn="hl-start">START</button>
           <button class="btn btn--stop" data-hover data-btn="hl-stop">STOP</button>
@@ -338,13 +370,11 @@ body{
       </div>
     </div>
 
-    <!-- Auth Token -->
+    <!-- Auth Token (compact single-row) -->
     <div class="auth">
-      <div class="auth-header">
-        <span class="auth-title"><span class="auth-title-icon">🔒</span> AUTH TOKEN</span>
-        <span class="override-badge"><span class="badge-dot" style="background:var(--green-bright);width:5px;height:5px;border-radius:50%;"></span>Override</span>
-      </div>
       <div class="auth-row">
+        <span class="auth-lbl"><span class="auth-lbl-icon">🔒</span>TOKEN</span>
+        <span class="override-badge" style="display:none"><span class="badge-dot" style="background:var(--green-bright);width:4px;height:4px;border-radius:50%;"></span>Override</span>
         <input class="auth-input" type="password" value="" placeholder="Enter token..." data-hover>
         <div class="auth-btns">
           <button class="abtn abtn--show" data-hover id="btnShow">SHOW</button>
@@ -670,7 +700,7 @@ function drawWolf(time) {
     }
 
     // Head rotation
-    const rv = rotateVertex([x, y, z], curHeadY * 0.6, -curHeadX);
+    const rv = rotateVertex([x, y, z], -curHeadY * 0.6, curHeadX);
 
     // Scale and translate to screen + shake
     return [
@@ -726,7 +756,7 @@ function drawWolf(time) {
 
   eyeOffsets.forEach(([baseOx, baseOy], idx) => {
     // Transform eye center through head rotation
-    const rotated = rotateVertex([baseOx/1.8, baseOy/1.8, 20], curHeadY * 0.6, -curHeadX);
+    const rotated = rotateVertex([baseOx/1.8, baseOy/1.8, 20], -curHeadY * 0.6, curHeadX);
     const ex = wolfCx + rotated[0] * 1.8 + shakeX;
     const ey = wolfCy + rotated[1] * 1.8 + shakeY;
 
@@ -798,7 +828,7 @@ function drawWolf(time) {
   });
 
   // Nose highlight
-  const noseRot = rotateVertex([0, -2, 28], curHeadY * 0.6, -curHeadX);
+  const noseRot = rotateVertex([0, -2, 28], -curHeadY * 0.6, curHeadX);
   const nx = wolfCx + noseRot[0]*1.8 + shakeX;
   const ny = wolfCy + noseRot[1]*1.8 + shakeY;
   wCtx.beginPath();
@@ -1152,6 +1182,8 @@ function updateSentinelLabel() {
 
 // ═══ updateState — called by C# every 1s via ExecuteScriptAsync ═══
 window.updateState = function(s) {
+  const isConnected = s.connection.status === 'connected';
+
   // ── SPT panel ──
   state.sptRunning = s.spt.running;
   const sptPanel = document.getElementById('panelSPT');
@@ -1183,6 +1215,14 @@ window.updateState = function(s) {
   const sptCrash = document.getElementById('sptCrash');
   sptCrash.textContent = s.spt.crashesToday;
   sptCrash.className = s.spt.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
+
+  // SPT console preview
+  updateConsolePreview('sptConsole', s.spt.consoleLines);
+
+  // SPT button states: START disabled when running, STOP/RESTART disabled when stopped
+  document.querySelector('[data-btn="spt-start"]').className = 'btn btn--start' + (s.spt.running ? ' disabled' : '');
+  document.querySelector('[data-btn="spt-stop"]').className = 'btn btn--stop' + (!s.spt.running ? ' disabled' : '');
+  document.querySelector('[data-btn="spt-restart"]').className = 'btn btn--restart' + (!s.spt.running ? ' disabled' : '');
 
   // ── Headless panel ──
   state.hlRunning = s.headless.running;
@@ -1218,13 +1258,24 @@ window.updateState = function(s) {
   hlCrash.textContent = s.headless.crashesToday;
   hlCrash.className = s.headless.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
 
+  // Headless console preview
+  updateConsolePreview('hlConsole', s.headless.consoleLines);
+
+  // HL button states
+  document.querySelector('[data-btn="hl-start"]').className = 'btn btn--start' + (s.headless.running ? ' disabled' : '');
+  document.querySelector('[data-btn="hl-stop"]').className = 'btn btn--stop' + (!s.headless.running ? ' disabled' : '');
+  document.querySelector('[data-btn="hl-restart"]').className = 'btn btn--restart' + (!s.headless.running ? ' disabled' : '');
+
   // ── Connection status ──
   const bbStatus = document.getElementById('bbStatus');
-  if (s.connection.status === 'connected') {
+  const dcBanner = document.getElementById('dcBanner');
+  if (isConnected) {
     bbStatus.innerHTML = '<span class="bb-dot bb-dot--g"></span><span style="color:var(--green-bright)">Connected</span>';
+    dcBanner.classList.remove('show');
     state.connected = true;
   } else {
-    bbStatus.innerHTML = '<span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span>';
+    bbStatus.innerHTML = '<span class="bb-dot bb-dot--r"></span><span style="color:var(--red-bright)">Disconnected</span>';
+    dcBanner.classList.add('show');
     state.connected = false;
   }
 
@@ -1232,6 +1283,13 @@ window.updateState = function(s) {
   const overrideBadge = document.querySelector('.override-badge');
   if (overrideBadge) {
     overrideBadge.style.display = s.connection.authOverride ? '' : 'none';
+  }
+
+  // ── System stats (memory) ──
+  if (s.system) {
+    const memEl = document.getElementById('wsMem');
+    memEl.textContent = s.system.ramUsedGB + ' / ' + s.system.ramTotalGB + ' GB';
+    memEl.className = 'ws-val ws-val--a';
   }
 
   // ── Wolf zone stats ──
@@ -1257,6 +1315,22 @@ window.updateState = function(s) {
   updateWolfState();
   updateSentinelLabel();
 };
+
+// ── Console preview helper ──
+function updateConsolePreview(id, lines) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!lines || lines.length === 0) {
+    el.innerHTML = '<div class="cl" style="color:var(--text-muted);font-style:italic">No output</div>';
+    return;
+  }
+  el.innerHTML = lines.map(l => '<div class="cl">' + escapeHtml(l) + '</div>').join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 // ═══ MAGNETIC BUTTON HOVER ═══
 document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {

@@ -115,6 +115,7 @@ public partial class MainWindow : Window
             var svr = _server.GetStatus();
             var hdl = _headless.GetStatus();
             var connState = _connection.ConnectionState;
+            var stats = SystemStats.Get();
 
             var state = new
             {
@@ -126,7 +127,8 @@ public partial class MainWindow : Window
                     autoRestart = _config.Watchdog.AutoRestartOnCrash,
                     autoStart = _config.Watchdog.AutoStartServer,
                     sessionTimeout = _config.Watchdog.SessionTimeoutMin,
-                    crashesToday = svr.RestartCount
+                    crashesToday = svr.RestartCount,
+                    consoleLines = _server.GetRecentConsoleLines(6)
                 },
                 headless = new
                 {
@@ -137,12 +139,19 @@ public partial class MainWindow : Window
                     autoStart = _config.Headless.AutoStart,
                     restartAfterRaids = _config.Headless.RestartAfterRaids > 0,
                     startDelay = _config.Headless.AutoStartDelaySec,
-                    crashesToday = hdl.RestartCount
+                    crashesToday = hdl.RestartCount,
+                    consoleLines = _headless.GetRecentConsoleLines(6)
                 },
                 connection = new
                 {
                     status = connState == CommandCenterConnection.State.Connected ? "connected" : "disconnected",
                     authOverride = !string.IsNullOrEmpty(_watchdogConfig.Token)
+                },
+                system = new
+                {
+                    cpuPercent = Math.Round(stats.CpuPercent, 1),
+                    ramUsedGB = Math.Round(stats.RamUsedGB, 1),
+                    ramTotalGB = Math.Round(stats.RamTotalGB, 1)
                 },
                 crashEvent = _pendingCrashEvent
             };
