@@ -74,6 +74,7 @@ body{
 
 /* ═══ APP CONTENT ═══ */
 .content{position:relative;z-index:10;display:flex;flex-direction:column;padding:10px 16px 8px;gap:8px;height:calc(100% - 36px);}
+.spacer{flex:1;}
 
 /* ═══ WOLF ZONE ═══ */
 .wolf-zone{
@@ -167,7 +168,7 @@ body{
 .profile-btn:hover{border-color:var(--amber-dim);background:var(--bg-card-hover);}
 
 /* Action buttons */
-.actions{display:flex;gap:7px;padding-top:6px;}
+.actions{display:flex;gap:7px;margin-top:auto;padding-top:6px;}
 .btn{
   flex:1;height:32px;border:1px solid;border-radius:4px;
   font-family:'Orbitron',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:2px;
@@ -308,6 +309,9 @@ body{
         <div class="ws-row"><span class="ws-lbl">Alerts</span><span class="ws-val ws-val--d" id="wsAlerts">0</span></div>
       </div>
     </div>
+
+    <!-- Spacer (absorbs dead space between wolf head and cards) -->
+    <div class="spacer"></div>
 
     <!-- Server Panels -->
     <div class="panels">
