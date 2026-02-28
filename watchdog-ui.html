@@ -325,7 +325,7 @@ body{
         <div class="set-row"><span class="set-row-lbl">Restart After Raids</span><span class="set-row-val" id="hlRaid">Off</span></div>
         <div class="toggle" id="togHlRaid" data-hover style="margin-bottom:6px;"><div class="toggle-t"></div></div>
         <div class="pair-row">
-          <div class="pair-item"><span class="stat-l">Start Delay</span><span class="set-row-val">30s</span></div>
+          <div class="pair-item"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
           <div class="pair-item" style="flex:0;"><span class="stat-l">Profile</span><div class="profile-btn" data-hover>⚙</div></div>
         </div>
         <div class="crash-row"><span class="stat-l">Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
@@ -344,7 +344,7 @@ body{
         <span class="override-badge"><span class="badge-dot" style="background:var(--green-bright);width:5px;height:5px;border-radius:50%;"></span>Override</span>
       </div>
       <div class="auth-row">
-        <input class="auth-input" type="password" value="a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6" data-hover>
+        <input class="auth-input" type="password" value="" placeholder="Enter token..." data-hover>
         <div class="auth-btns">
           <button class="abtn abtn--show" data-hover id="btnShow">SHOW</button>
           <button class="abtn abtn--save" data-hover>SAVE</button>
@@ -367,7 +367,6 @@ body{
     </div>
   </div>
 
-  <div class="help">KEYS: [1] Toggle SPT &nbsp; [2] Toggle Headless &nbsp; [3] Simulate Crash &nbsp; [4] Toggle Connection</div>
 </div>
 
 <script>
@@ -986,18 +985,6 @@ function loop(time) {
     }
   }
 
-  // Update SPT uptime
-  if (state.sptRunning) {
-    state.sptUpSec += dt/1000;
-    document.getElementById('sptUp').textContent = formatTime(state.sptUpSec);
-    document.getElementById('sptUp').className = 'stat-v';
-  }
-  if (state.hlRunning) {
-    state.hlUpSec += dt/1000;
-    document.getElementById('hlUp').textContent = formatTime(state.hlUpSec);
-    document.getElementById('hlUp').className = 'stat-v';
-  }
-
   // Wolf sentinel stats
   document.getElementById('wsUptime').textContent = formatTime(state.appUptime/1000);
 
@@ -1025,11 +1012,47 @@ document.addEventListener('mousemove', e => {
 
 // ═══ INTERACTIVITY ═══
 
-// Toggles
-document.querySelectorAll('.toggle').forEach(tog => {
-  tog.addEventListener('click', () => {
-    tog.classList.toggle('on');
+// ── PostMessage helper ──
+function send(action, value) {
+  if (window.chrome && window.chrome.webview)
+    window.chrome.webview.postMessage(JSON.stringify({ action, value }));
+}
+
+// ── Titlebar buttons ──
+document.querySelectorAll('.tb-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('tb-btn--x')) send('close');
+    else send('minimize');
   });
+});
+
+// ── Process control buttons ──
+document.querySelectorAll('[data-btn]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const map = {
+      'spt-start':'spt_start','spt-stop':'spt_stop','spt-restart':'spt_restart',
+      'hl-start':'hl_start','hl-stop':'hl_stop','hl-restart':'hl_restart'
+    };
+    const action = map[btn.getAttribute('data-btn')];
+    if (action) send(action);
+  });
+});
+
+// ── Toggle wiring (state comes from C#, don't flip CSS locally) ──
+const toggleActions = {
+  togSptRst: 'toggle_spt_autorst',
+  togSptAs: 'toggle_spt_autostart',
+  togHlRst: 'toggle_hl_autorst',
+  togHlAs: 'toggle_hl_autostart',
+  togHlRaid: 'toggle_hl_raidrestart'
+};
+Object.entries(toggleActions).forEach(([id, action]) => {
+  document.getElementById(id).addEventListener('click', () => send(action));
+});
+// Tray toggle — no C# state push, so flip CSS locally as feedback
+document.getElementById('togTray').addEventListener('click', function() {
+  this.classList.toggle('on');
+  send('toggle_tray');
 });
 
 // Button ripple
@@ -1054,101 +1077,66 @@ document.getElementById('btnShow').addEventListener('click', function() {
   else { inp.type = 'password'; this.textContent = 'SHOW'; }
 });
 
-// ═══ KEYBOARD STATE SIMULATION ═══
-document.addEventListener('keydown', e => {
-  if (e.key === '1') toggleSPT();
-  if (e.key === '2') toggleHL();
-  if (e.key === '3') simulateCrash();
-  if (e.key === '4') toggleConnection();
+// ── Auth save/clear ──
+document.querySelector('.abtn--save').addEventListener('click', () => {
+  const token = document.querySelector('.auth-input').value.trim();
+  send('auth_save', token);
+});
+document.querySelector('.abtn--clear').addEventListener('click', () => {
+  document.querySelector('.auth-input').value = '';
+  send('auth_clear');
 });
 
-function toggleSPT() {
-  state.sptRunning = !state.sptRunning;
-  const panel = document.getElementById('panelSPT');
-  const badge = document.getElementById('badgeSPT');
-  if (state.sptRunning) {
-    panel.className = 'panel running';
-    badge.className = 'badge badge--g';
-    badge.innerHTML = '<span class="badge-dot"></span>Running';
-    state.sptUpSec = 0;
-    state.sptPid = Math.floor(10000+Math.random()*89999);
-    document.getElementById('sptPid').textContent = state.sptPid;
-    document.getElementById('sptPid').className = 'stat-v';
-    document.getElementById('wsMem').textContent = '142MB';
-    document.getElementById('wsMem').className = 'ws-val ws-val--a';
-  } else {
-    panel.className = 'panel stopped';
-    badge.className = 'badge badge--r';
-    badge.innerHTML = '<span class="badge-dot"></span>Stopped';
-    document.getElementById('sptUp').textContent = '--';
-    document.getElementById('sptUp').className = 'stat-v stat-v--d';
-    document.getElementById('sptPid').textContent = '--';
-    document.getElementById('sptPid').className = 'stat-v stat-v--d';
-    document.getElementById('wsMem').textContent = '--';
-    document.getElementById('wsMem').className = 'ws-val ws-val--d';
+// ── Bottom bar buttons ──
+document.querySelector('.bb-btn--cmd').addEventListener('click', () => send('open_command_center'));
+document.querySelector('.bb-btn--quit').addEventListener('click', () => send('quit'));
+
+// ── Session timeout slider ──
+(function() {
+  const wrap = document.querySelector('.slider-wrap');
+  const track = wrap.querySelector('.slider-track');
+  const fill = wrap.querySelector('.slider-fill');
+  const thumb = wrap.querySelector('.slider-thumb');
+  let dragging = false;
+  let currentTimeout = 5;
+
+  function setSliderVisual(val) {
+    val = Math.max(1, Math.min(30, Math.round(val)));
+    currentTimeout = val;
+    const pct = ((val - 1) / 29) * 100;
+    fill.style.width = pct + '%';
+    thumb.style.left = pct + '%';
+    document.getElementById('sptTimeout').textContent = val + ' min';
   }
-  updateWolfState();
-  updateSentinelLabel();
-}
 
-function toggleHL() {
-  state.hlRunning = !state.hlRunning;
-  const panel = document.getElementById('panelHL');
-  const badge = document.getElementById('badgeHL');
-  if (state.hlRunning) {
-    panel.className = 'panel running';
-    badge.className = 'badge badge--g';
-    badge.innerHTML = '<span class="badge-dot"></span>Running';
-    state.hlUpSec = 0;
-    state.hlPid = Math.floor(10000+Math.random()*89999);
-    document.getElementById('hlPid').textContent = state.hlPid;
-    document.getElementById('hlPid').className = 'stat-v';
-  } else {
-    panel.className = 'panel stopped';
-    badge.className = 'badge badge--r';
-    badge.innerHTML = '<span class="badge-dot"></span>Stopped';
-    document.getElementById('hlUp').textContent = '--';
-    document.getElementById('hlUp').className = 'stat-v stat-v--d';
-    document.getElementById('hlPid').textContent = '--';
-    document.getElementById('hlPid').className = 'stat-v stat-v--d';
+  function getValFromX(clientX) {
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round(1 + pct * 29);
   }
-  updateWolfState();
-  updateSentinelLabel();
-}
 
-function simulateCrash() {
-  state.sptCrashes++;
-  document.getElementById('sptCrash').textContent = state.sptCrashes;
-  document.getElementById('sptCrash').className = 'crash-val nonzero';
-  document.getElementById('wsCrash').textContent = state.sptCrashes + state.hlCrashes;
+  wrap.addEventListener('mousedown', e => {
+    dragging = true;
+    setSliderVisual(getValFromX(e.clientX));
+    e.preventDefault();
+  });
 
-  // Wolf alert
-  state.alertActive = true;
-  state.alertTimer = 3000;
-  state.wolfState = 'alert';
-  shakeTimer = 500;
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    setSliderVisual(getValFromX(e.clientX));
+  });
 
-  // Burst particles
-  for (let i = 0; i < 25; i++) embers.push(makeEmber(true));
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    send('set_session_timeout', currentTimeout);
+  });
 
-  // Alert count
-  const alertEl = document.getElementById('wsAlerts');
-  alertEl.textContent = parseInt(alertEl.textContent) + 1;
-  alertEl.className = 'ws-val ws-val--r';
+  window._setSliderValue = setSliderVisual;
+  window._sliderDragging = () => dragging;
+})();
 
-  updateSentinelLabel();
-}
-
-function toggleConnection() {
-  state.connected = !state.connected;
-  const el = document.getElementById('bbStatus');
-  if (state.connected) {
-    el.innerHTML = '<span class="bb-dot bb-dot--g"></span><span style="color:var(--green-bright)">Connected</span>';
-  } else {
-    el.innerHTML = '<span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span>';
-  }
-}
-
+// ── Sentinel label update ──
 function updateSentinelLabel() {
   const el = document.getElementById('wsSentinel');
   const labels = { healthy:'ALL CLEAR', vigilant:'VIGILANT', alert:'⚠ ALERT', dormant:'DORMANT', asleep:'SLEEPING' };
@@ -1161,10 +1149,116 @@ function updateSentinelLabel() {
   document.getElementById('wsProc').className = procCount > 0 ? 'ws-val ws-val--a' : 'ws-val ws-val--d';
 }
 
+// ═══ updateState — called by C# every 1s via ExecuteScriptAsync ═══
+window.updateState = function(s) {
+  // ── SPT panel ──
+  state.sptRunning = s.spt.running;
+  const sptPanel = document.getElementById('panelSPT');
+  const sptBadge = document.getElementById('badgeSPT');
+  sptPanel.className = s.spt.running ? 'panel running' : 'panel stopped';
+  sptBadge.className = s.spt.running ? 'badge badge--g' : 'badge badge--r';
+  sptBadge.innerHTML = s.spt.running
+    ? '<span class="badge-dot"></span>Running'
+    : '<span class="badge-dot"></span>Stopped';
+
+  const sptUp = document.getElementById('sptUp');
+  sptUp.textContent = s.spt.uptime;
+  sptUp.className = s.spt.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  const sptPid = document.getElementById('sptPid');
+  sptPid.textContent = s.spt.pid;
+  sptPid.className = s.spt.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  // SPT toggles
+  document.getElementById('togSptRst').className = s.spt.autoRestart ? 'toggle on' : 'toggle';
+  document.getElementById('togSptAs').className = s.spt.autoStart ? 'toggle on' : 'toggle';
+
+  // Session timeout slider (skip if user is dragging)
+  if (!window._sliderDragging || !window._sliderDragging()) {
+    if (window._setSliderValue) window._setSliderValue(s.spt.sessionTimeout);
+  }
+
+  // SPT crashes
+  const sptCrash = document.getElementById('sptCrash');
+  sptCrash.textContent = s.spt.crashesToday;
+  sptCrash.className = s.spt.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
+
+  // ── Headless panel ──
+  state.hlRunning = s.headless.running;
+  const hlPanel = document.getElementById('panelHL');
+  const hlBadge = document.getElementById('badgeHL');
+  hlPanel.className = s.headless.running ? 'panel running' : 'panel stopped';
+  hlBadge.className = s.headless.running ? 'badge badge--g' : 'badge badge--r';
+  hlBadge.innerHTML = s.headless.running
+    ? '<span class="badge-dot"></span>Running'
+    : '<span class="badge-dot"></span>Stopped';
+
+  const hlUp = document.getElementById('hlUp');
+  hlUp.textContent = s.headless.uptime;
+  hlUp.className = s.headless.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  const hlPid = document.getElementById('hlPid');
+  hlPid.textContent = s.headless.pid;
+  hlPid.className = s.headless.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  // Headless toggles
+  document.getElementById('togHlRst').className = s.headless.autoRestart ? 'toggle on' : 'toggle';
+  document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
+  document.getElementById('togHlRaid').className = s.headless.restartAfterRaids ? 'toggle on' : 'toggle';
+
+  // Headless restart-after-raids label
+  document.getElementById('hlRaid').textContent = s.headless.restartAfterRaids ? 'On' : 'Off';
+
+  // Headless start delay
+  document.getElementById('hlDelay').textContent = s.headless.startDelay + 's';
+
+  // Headless crashes
+  const hlCrash = document.getElementById('hlCrash');
+  hlCrash.textContent = s.headless.crashesToday;
+  hlCrash.className = s.headless.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
+
+  // ── Connection status ──
+  const bbStatus = document.getElementById('bbStatus');
+  if (s.connection.status === 'connected') {
+    bbStatus.innerHTML = '<span class="bb-dot bb-dot--g"></span><span style="color:var(--green-bright)">Connected</span>';
+    state.connected = true;
+  } else {
+    bbStatus.innerHTML = '<span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span>';
+    state.connected = false;
+  }
+
+  // Auth override badge
+  const overrideBadge = document.querySelector('.override-badge');
+  if (overrideBadge) {
+    overrideBadge.style.display = s.connection.authOverride ? '' : 'none';
+  }
+
+  // ── Wolf zone stats ──
+  const totalCrashes = s.spt.crashesToday + s.headless.crashesToday;
+  state.sptCrashes = s.spt.crashesToday;
+  state.hlCrashes = s.headless.crashesToday;
+  document.getElementById('wsCrash').textContent = totalCrashes;
+  document.getElementById('wsCrash').className = totalCrashes > 0 ? 'ws-val ws-val--r' : 'ws-val ws-val--d';
+
+  // ── Crash event — wolf alert ──
+  if (s.crashEvent) {
+    state.alertActive = true;
+    state.alertTimer = 3000;
+    state.wolfState = 'alert';
+    shakeTimer = 500;
+    for (let i = 0; i < 25; i++) embers.push(makeEmber(true));
+    const alertEl = document.getElementById('wsAlerts');
+    alertEl.textContent = parseInt(alertEl.textContent || '0') + 1;
+    alertEl.className = 'ws-val ws-val--r';
+  }
+
+  // Update wolf state + sentinel
+  updateWolfState();
+  updateSentinelLabel();
+};
+
 // ═══ MAGNETIC BUTTON HOVER ═══
 document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
-  let bx = 0, by = 0, bvx = 0, bvy = 0;
-
   btn.addEventListener('mousemove', e => {
     const rect = btn.getBoundingClientRect();
     const cx = rect.left + rect.width/2;
@@ -1175,8 +1269,8 @@ document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
     const maxDist = 60;
     if (dist < maxDist) {
       const force = (1 - dist/maxDist) * 3;
-      bx = dx/dist * force;
-      by = dy/dist * force;
+      const bx = dx/dist * force;
+      const by = dy/dist * force;
       btn.style.transform = `translate(${bx}px, ${by}px)`;
     }
   });

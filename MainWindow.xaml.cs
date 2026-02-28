@@ -234,7 +234,12 @@ public partial class MainWindow : Window
                     // Handled client-side (toggles password visibility)
                     break;
                 case "auth_save":
-                    // Token saving would need the token value passed from the frontend
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        var token = value.GetString()?.Trim() ?? "";
+                        _watchdogConfig.Token = token;
+                        SaveWatchdogConfig();
+                    }
                     break;
                 case "auth_clear":
                     _watchdogConfig.Token = "";
