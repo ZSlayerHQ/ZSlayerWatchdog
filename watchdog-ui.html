@@ -345,8 +345,7 @@ body{
           <div class="stat"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togHlRst" data-hover><div class="toggle-t"></div></div></div>
           <div class="stat"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
         </div>
-        <div class="set-row"><span class="set-row-lbl">Restart After Raids</span><span class="set-row-val" id="hlRaid">Off</span></div>
-        <div class="toggle" id="togHlRaid" data-hover style="margin-bottom:3px;"><div class="toggle-t"></div></div>
+        <div class="set-row"><span class="set-row-lbl">Restart After Raids</span><div class="toggle" id="togHlRaid" data-hover><div class="toggle-t"></div></div></div>
         <div class="pair-row">
           <div class="pair-item"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
           <div class="pair-item" style="flex:0;"><span class="stat-l">Profile</span><div class="profile-btn" data-hover>⚙</div></div>
@@ -1233,9 +1232,6 @@ window.updateState = function(s) {
   document.getElementById('togHlRst').className = s.headless.autoRestart ? 'toggle on' : 'toggle';
   document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
   document.getElementById('togHlRaid').className = s.headless.restartAfterRaids ? 'toggle on' : 'toggle';
-
-  // Headless restart-after-raids label
-  document.getElementById('hlRaid').textContent = s.headless.restartAfterRaids ? 'On' : 'Off';
 
   // Headless start delay
   document.getElementById('hlDelay').textContent = s.headless.startDelay + 's';
