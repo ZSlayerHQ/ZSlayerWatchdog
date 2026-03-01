@@ -365,7 +365,7 @@ body{
     <!-- Auth Token (compact single-row) -->
     <div class="auth">
       <div class="auth-row">
-        <span class="auth-lbl"><span class="auth-lbl-icon">🔒</span>TOKEN</span>
+        <span class="auth-lbl" title="Auth token for the WebSocket connection between this Watchdog and the Command Center server. Generate the token in the CC Dashboard (Watchdog tab), then paste it here. Both sides must match or the connection will be rejected."><span class="auth-lbl-icon">🔒</span>TOKEN</span>
         <span class="override-badge" style="display:none"><span class="badge-dot" style="background:var(--green-bright);width:4px;height:4px;border-radius:50%;"></span>Override</span>
         <input class="auth-input" type="password" value="" placeholder="Enter token..." data-hover>
         <div class="auth-btns">
@@ -501,15 +501,20 @@ function drawBg() {
 function drawGlow() {
   gCtx.clearRect(0, 0, W, H);
   const cx = W/2, cy = 140;
+  const t = performance.now() / 1000;
+  // Pulse: 1.5s cycle (50% faster than a typical 3s)
+  const pulse = 0.7 + Math.sin(t * (2 * Math.PI / 1.5)) * 0.3;
   const colors = {
-    healthy: 'rgba(212,160,50,0.12)',
-    vigilant: 'rgba(212,160,50,0.08)',
-    alert: 'rgba(231,76,60,0.15)',
-    dormant: 'rgba(100,80,50,0.04)',
-    asleep: 'rgba(50,40,30,0.02)',
+    healthy: [212,160,50, 0.18],
+    vigilant: [212,160,50, 0.12],
+    alert: [231,76,60, 0.22],
+    dormant: [100,80,50, 0.06],
+    asleep: [50,40,30, 0.03],
   };
+  const c = colors[state.wolfState] || colors.dormant;
+  const a = (c[3] * pulse).toFixed(3);
   const grad = gCtx.createRadialGradient(cx, cy+30, 10, cx, cy+30, 220);
-  grad.addColorStop(0, colors[state.wolfState] || colors.dormant);
+  grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${a})`);
   grad.addColorStop(1, 'transparent');
   gCtx.fillStyle = grad;
   gCtx.fillRect(0, 0, W, H);
@@ -521,11 +526,11 @@ let pulseTimer = 0;
 
 function getPulseConfig() {
   switch (state.wolfState) {
-    case 'healthy': return { interval: 120, color: [212,160,50], maxR: 500, alpha: 0.22 };
-    case 'vigilant': return { interval: 90, color: [212,160,50], maxR: 540, alpha: 0.28 };
-    case 'alert': return { interval: 40, color: [231,76,60], maxR: 600, alpha: 0.35 };
-    case 'dormant': return { interval: 220, color: [100,80,50], maxR: 400, alpha: 0.12 };
-    default: return { interval: 350, color: [60,50,35], maxR: 300, alpha: 0.06 };
+    case 'healthy': return { interval: 120, color: [212,160,50], maxR: 500, alpha: 0.66 };
+    case 'vigilant': return { interval: 90, color: [212,160,50], maxR: 540, alpha: 0.84 };
+    case 'alert': return { interval: 40, color: [231,76,60], maxR: 600, alpha: 1.0 };
+    case 'dormant': return { interval: 220, color: [100,80,50], maxR: 400, alpha: 0.36 };
+    default: return { interval: 350, color: [60,50,35], maxR: 300, alpha: 0.18 };
   }
 }
 
@@ -551,9 +556,8 @@ function drawPulseRings(ctx) {
       continue;
     }
 
-    const ease = ring.life * ring.life;
-    const alpha = ease * cfg.alpha;
-    const width = 1.8 + (1 - ring.life) * 1.2;
+    const alpha = ring.life * cfg.alpha;
+    const width = 2.5 + (1 - ring.life) * 0.5;
     const [cr, cg, cb] = cfg.color;
 
     // Sonar sweep — filled gradient band trailing behind the leading edge
@@ -592,7 +596,7 @@ function drawPulseRings(ctx) {
         const eDist = Math.sqrt(edx * edx + edy * edy);
         const ringDist = Math.abs(eDist - ring.r);
         if (ringDist < 18 && eDist > 1) {
-          const push = (18 - ringDist) / 18 * 0.35 * ease * df;
+          const push = (18 - ringDist) / 18 * 0.35 * ring.life * df;
           e.vx += (edx / eDist) * push;
           e.vy += (edy / eDist) * push;
         }
@@ -602,7 +606,7 @@ function drawPulseRings(ctx) {
 }
 
 // ═══ WOLF HEAD — LOW POLY MESH ═══
-const wolfCx = W/2, wolfCy = 280;
+const wolfCx = W/2, wolfCy = 320;
 const WOLF_SCALE = 3.9; // head render scale (was 2.6, scaled 1.5x)
 let headAngleX = 0, headAngleY = 0; // target
 let curHeadX = 0, curHeadY = 0;
@@ -1200,6 +1204,14 @@ function drawWolf(time) {
     targetHX *= (1 - hg);
     targetHY = targetHY * (1 - hg) + HEAD_TILT_DEFAULT * hg;
   }
+  // Head follows random look direction
+  if (typeof randLooking !== 'undefined' && randLooking > 0) {
+    const rg = Math.min(1, randLooking / 15) * 0.3;
+    const rlHX = (randLookX - 0.5) * 0.38;
+    const rlHY = (randLookY - 0.35) * 0.25 + HEAD_TILT_DEFAULT;
+    targetHX = targetHX * (1 - rg) + rlHX * rg;
+    targetHY = targetHY * (1 - rg) + rlHY * rg;
+  }
   // Spring-damper head tracking (mass feel — lag, overshoot, settle)
   velHeadX = (velHeadX + (targetHX - curHeadX) * springHead.k * df) * Math.pow(springHead.d, df);
   curHeadX = Math.max(-0.25, Math.min(0.25, curHeadX + velHeadX * df));
@@ -1353,6 +1365,17 @@ function drawWolf(time) {
   }
   if (eyeGlancing > 0) eyeGlancing -= df;
 
+  // Random look — eyes dart to a random spot every 10-15s
+  if (typeof randLookTimer === 'undefined') { randLookTimer = 600 + Math.random() * 300; randLooking = 0; randLookX = 0.5; randLookY = 0.5; }
+  randLookTimer -= df;
+  if (randLookTimer <= 0 && randLooking <= 0) {
+    randLookX = 0.15 + Math.random() * 0.7;
+    randLookY = 0.15 + Math.random() * 0.7;
+    randLooking = 60 + Math.random() * 90; // hold 1-2.5s
+    randLookTimer = 480 + Math.random() * 240; // next in 8-12s
+  }
+  if (randLooking > 0) randLooking -= df;
+
   // Update reaction delay buffer + vary delay for lifelike attention
   eyeBufRx[eyeBufIdx] = mouse.rx;
   eyeBufRy[eyeBufIdx] = mouse.ry;
@@ -1373,6 +1396,12 @@ function drawWolf(time) {
     const glanceBlend = Math.min(1, eyeGlancing / 15); // smooth in/out
     delayedRx = delayedRx + (0.5 - delayedRx) * glanceBlend;
     delayedRy = delayedRy + (0.5 - delayedRy) * glanceBlend;
+  }
+  // Override with random target during random look
+  if (randLooking > 0) {
+    const rlBlend = Math.min(1, randLooking / 15);
+    delayedRx = delayedRx + (randLookX - delayedRx) * rlBlend;
+    delayedRy = delayedRy + (randLookY - delayedRy) * rlBlend;
   }
 
   // Eye positions — wide-set wolf eyes (X=±17, Y=-23, Z=19)

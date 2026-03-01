@@ -262,6 +262,15 @@ public class CommandCenterConnection : IDisposable
             var root = doc.RootElement;
 
             var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+
+            if (type == "raidEnd")
+            {
+                var map = root.TryGetProperty("map", out var m) ? m.GetString() ?? "" : "";
+                _log($"Raid ended on {map} — checking RAR...");
+                _headless.ScheduleRaidRestart();
+                return;
+            }
+
             if (type != "command") return;
 
             var target = root.TryGetProperty("target", out var tgt) ? tgt.GetString() ?? "" : "";

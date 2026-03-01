@@ -19,6 +19,7 @@ public class HeadlessProcessManager
     private bool _available;
     private bool _stopping;
     private CancellationTokenSource? _autoStartCts;
+    private CancellationTokenSource? _rarCts;
     private readonly List<string> _consoleBuffer = new();
     private const int MaxConsoleLines = 50;
 
@@ -207,6 +208,7 @@ public class HeadlessProcessManager
     {
         _stopping = true;
         _autoStartCts?.Cancel();
+        _rarCts?.Cancel();
 
         if (_process != null && !_process.HasExited)
         {
@@ -225,6 +227,39 @@ public class HeadlessProcessManager
         _process = null;
         _startedAt = null;
         return GetStatus();
+    }
+
+    public void ScheduleRaidRestart()
+    {
+        if (_config.RestartAfterRaids <= 0 || !IsRunning || _stopping)
+        {
+            _log("RAR: Skipped — disabled, not running, or already stopping");
+            return;
+        }
+
+        // Cancel any previous pending RAR
+        _rarCts?.Cancel();
+        _rarCts = new CancellationTokenSource();
+        var token = _rarCts.Token;
+
+        _log("RAR: Raid ended, restarting headless in 30s...");
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(30_000, token);
+                if (IsRunning && !_stopping)
+                {
+                    _log("RAR: Restarting headless now");
+                    Restart();
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                _log("RAR: Restart cancelled");
+            }
+        }, token);
     }
 
     public HeadlessStatusDto Restart()
@@ -312,6 +347,8 @@ public class HeadlessProcessManager
 
     private void OnProcessExited(object? sender, EventArgs e)
     {
+        _rarCts?.Cancel(); // Cancel any pending RAR — process already exited
+
         if (_stopping) return;
 
         var exitCode = _process?.ExitCode;
