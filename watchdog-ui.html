@@ -86,7 +86,7 @@ body{
 .ws-val--r{color:var(--red-bright);text-shadow:0 0 12px var(--red-glow);}
 .ws-val--d{color:var(--text-dim);}
 .wolf-center{width:260px;height:280px;position:relative;flex-shrink:0;}
-.wolf-breath-row{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:3px;z-index:5;}
+.wolf-breath-row{display:flex;gap:3px;justify-content:center;margin:2px 0 0 0;}
 .wb{width:5px;background:var(--amber-dim);border-radius:2px;animation:wb 3s ease-in-out infinite;}
 .wb:nth-child(1){height:3px;animation-delay:0s;}
 .wb:nth-child(2){height:5px;animation-delay:.12s;}
@@ -297,7 +297,6 @@ body{
         <div class="ws-row"><span class="ws-lbl">Total Crashes</span><span class="ws-val ws-val--d" id="wsCrash">1</span></div>
       </div>
       <div class="wolf-center">
-        <div class="wolf-breath-row"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
       </div>
       <div class="wolf-side" style="align-items:flex-start;">
         <div class="ws-row"><span class="ws-lbl">Uptime</span><span class="ws-val ws-val--a" id="wsUptime">00:00:00</span></div>
@@ -306,6 +305,7 @@ body{
       </div>
     </div>
 
+    <div class="wolf-breath-row"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
     <div class="sentinel-lbl">◇ SENTINEL ACTIVE ◇</div>
 
     <!-- Server Panels -->
