@@ -63,6 +63,7 @@ body{
 .tb-sep{color:var(--text-dim);margin:0 2px;}
 .tb-ver{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px;}
 .tb-controls{display:flex;gap:1px;}
+.tb-right{display:flex;align-items:center;gap:10px;}
 .tb-btn{width:36px;height:28px;background:0;border:0;color:var(--text-dim);
   font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
   border-radius:3px;transition:all .15s;-webkit-app-region:no-drag;app-region:no-drag;}
@@ -280,10 +281,12 @@ body{
     <div class="tb-brand">
       <span class="tb-name">ZSLAYER <span class="tb-sep">—</span> <b>WATCHDOG</b></span>
     </div>
-    <span class="tb-ver">↑ v2.6.0</span>
-    <div class="tb-controls">
+    <div class="tb-right">
+      <span class="tb-ver">↑ v2.6.0</span>
+      <div class="tb-controls">
       <button class="tb-btn" data-hover>—</button>
       <button class="tb-btn tb-btn--x" data-hover>×</button>
+    </div>
     </div>
   </div>
 
@@ -342,18 +345,16 @@ body{
           <span class="ph-title"><span class="ph-icon">🖥</span> HEADLESS</span>
           <span class="badge badge--r" id="badgeHL"><span class="badge-dot"></span>Stopped</span>
         </div>
-        <div class="stats stats--5">
+        <div class="stats">
           <div class="stat"><span class="stat-l">Uptime</span><span class="stat-v stat-v--d" id="hlUp">--</span></div>
           <div class="stat"><span class="stat-l">PID</span><span class="stat-v stat-v--d" id="hlPid">--</span></div>
-          <div class="stat" title="Start the headless client when the watchdog launches"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
           <div class="stat" title="Auto-restart the headless client if it crashes"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togHlRst" data-hover><div class="toggle-t"></div></div></div>
+          <div class="stat" title="Start the headless client when the watchdog launches"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
         </div>
         <div class="set-row" title="Restart the headless after this many raids (0 = disabled)"><span class="set-row-lbl">Restart After Raids</span><span class="set-row-val" id="hlRarVal">0</span></div>
         <div class="slider-wrap" id="rarSliderWrap"><div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb" data-hover></div></div></div>
-        <div class="pair-row">
-          <div class="pair-item" style="flex:0;" title="Profile is auto-read from HeadlessConfig.json"><span class="stat-l">Profile</span><span class="set-row-val" id="hlProfile">--</span></div>
-        </div>
         <div class="crash-row"><span class="stat-l">Restarts / Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
+        <div class="stat" style="margin:2px 0;" title="Profile is auto-read from HeadlessConfig.json"><span class="stat-l">Profile</span><span class="set-row-val" id="hlProfile">--</span></div>
         <div class="actions">
           <button class="btn btn--start" data-hover data-btn="hl-start">START</button>
           <button class="btn btn--stop" data-hover data-btn="hl-stop">STOP</button>
