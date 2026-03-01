@@ -1368,6 +1368,9 @@ let eyelidClose = 0, curEyelid = 0;
 
 // Alert shake
 let shakeX = 0, shakeY = 0, shakeTimer = 0;
+// Idle ear twitch — random pin-back every 30-60s
+let earTwitchCountdown = (30 + Math.random() * 30) * 60; // frames (~60fps)
+let earTwitchTimer = 0;
 let noseScreenX = W/2, noseScreenY = 280; // updated each frame from transformed nose vertex
 
 // Breath particles
@@ -1421,6 +1424,17 @@ function drawWolf(time) {
   // Breathing
   const breathPhase = Math.sin(t * (2 * Math.PI / breathSpeed));
   const breathBob = breathPhase * 2.5; // subtle head bob in sync with breathing
+
+  // Idle ear twitch — brief pin-back flick
+  earTwitchCountdown -= df;
+  if (earTwitchCountdown <= 0 && earTwitchTimer <= 0) {
+    earTwitchTimer = 8 + Math.random() * 6; // 8-14 frames (~150-230ms)
+    earTwitchCountdown = (30 + Math.random() * 30) * 60;
+  }
+  if (earTwitchTimer > 0) {
+    earPinBack = -0.30; // flick ears back
+    earTwitchTimer -= df;
+  }
 
   // Shake (alert)
   if (shakeTimer > 0) {
