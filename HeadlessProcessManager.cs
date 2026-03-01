@@ -52,8 +52,15 @@ public class HeadlessProcessManager
     private const int MaxConsoleLines = 50;
     private bool _consoleVisible = true;
     private readonly List<IntPtr> _windowHandles = new();
+    private bool _waitingForServer;
 
     public bool IsRunning => _process != null && !_process.HasExited;
+
+    /// <summary>True when auto-start is pending and waiting for server readiness.</summary>
+    public bool WaitingForServer => _waitingForServer;
+
+    /// <summary>True once the headless telemetry plugin has reported active (fully loaded).</summary>
+    public bool HeadlessReady { get; private set; }
 
     public HeadlessProcessManager(HeadlessSection config, string sptRoot, Action<string> log)
     {
@@ -155,6 +162,13 @@ public class HeadlessProcessManager
         catch { /* GetProcessesByName can throw on restricted environments */ }
     }
 
+    public void CancelAutoStart()
+    {
+        _autoStartCts?.Cancel();
+        _autoStartCts = null;
+        _waitingForServer = false;
+    }
+
     public void StartAutoStartTimer(Func<bool> isServerReady)
     {
         if (!_config.AutoStart || !_available || string.IsNullOrEmpty(_config.ProfileId))
@@ -162,6 +176,7 @@ public class HeadlessProcessManager
 
         _autoStartCts = new CancellationTokenSource();
         var token = _autoStartCts.Token;
+        _waitingForServer = true;
 
         _log("Headless auto-start scheduled (waiting for server readiness)...");
 
@@ -173,10 +188,11 @@ public class HeadlessProcessManager
                 while (!isServerReady() && !token.IsCancellationRequested)
                     await Task.Delay(1000, token);
 
+                _waitingForServer = false;
                 if (!token.IsCancellationRequested && !IsRunning)
                     Start();
             }
-            catch (TaskCanceledException) { }
+            catch (TaskCanceledException) { _waitingForServer = false; }
         }, token);
     }
 
@@ -192,6 +208,7 @@ public class HeadlessProcessManager
             return GetStatus();
 
         _stopping = false;
+        HeadlessReady = false;
 
         var backendUrl = _serverManager?.ServerUrl ?? "https://127.0.0.1:6969";
         var args = $"-token={_config.ProfileId} " +
@@ -267,6 +284,7 @@ public class HeadlessProcessManager
         _process = null;
         _startedAt = null;
         _windowHandles.Clear();
+        HeadlessReady = false;
         return GetStatus();
     }
 
@@ -430,6 +448,13 @@ public class HeadlessProcessManager
             _consoleBuffer.Add(e.Data);
             while (_consoleBuffer.Count > MaxConsoleLines)
                 _consoleBuffer.RemoveAt(0);
+        }
+
+        // Detect headless fully loaded — telemetry plugin reports active
+        if (!HeadlessReady && e.Data.Contains("[ZSlayerHQ] Headless telemetry active"))
+        {
+            HeadlessReady = true;
+            _log("Headless fully loaded (telemetry active)");
         }
     }
 

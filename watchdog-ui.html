@@ -109,6 +109,8 @@ body{
 .panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:6px 6px 0 0;transition:background .4s,box-shadow .4s;}
 .panel.running{border-color:#4a7c59;}
 .panel.running::before{background:var(--green);box-shadow:0 0 12px var(--green-glow),0 2px 20px var(--green-glow);}
+.panel.starting{border-color:rgba(212,160,50,0.3);}
+.panel.starting::before{background:var(--amber);box-shadow:0 0 12px var(--amber-glow),0 2px 20px var(--amber-glow);}
 .panel.stopped{border-color:rgba(200,170,110,0.15);}
 .panel.stopped::before{background:var(--red);box-shadow:0 0 12px var(--red-glow),0 2px 20px var(--red-glow);}
 .panel.crashed{border-color:#8b3a3a;}
@@ -121,9 +123,11 @@ body{
 .badge{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:3px 10px;border-radius:10px;display:flex;align-items:center;gap:5px;}
 .badge--g{background:rgba(76,175,80,.1);color:var(--green-bright);border:1px solid rgba(76,175,80,.2);}
 .badge--r{background:rgba(231,76,60,.1);color:var(--red-bright);border:1px solid rgba(231,76,60,.2);}
+.badge--a{background:rgba(212,160,50,.1);color:var(--amber-bright);border:1px solid rgba(212,160,50,.2);}
 .badge-dot{width:5px;height:5px;border-radius:50%;animation:bp 2s ease-in-out infinite;}
 .badge--g .badge-dot{background:var(--green-bright);}
 .badge--r .badge-dot{background:var(--red-bright);}
+.badge--a .badge-dot{background:var(--amber-bright);}
 @keyframes bp{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.65);}}
 
 /* Stats grid */
@@ -343,10 +347,10 @@ body{
           <div class="stat"><span class="stat-l">PID</span><span class="stat-v stat-v--d" id="hlPid">--</span></div>
           <div class="stat" title="Start the headless client when the watchdog launches"><span class="stat-l">Auto-Start</span><div class="toggle" id="togHlAs" data-hover><div class="toggle-t"></div></div></div>
           <div class="stat" title="Auto-restart the headless client if it crashes"><span class="stat-l">Auto-Rst</span><div class="toggle" id="togHlRst" data-hover><div class="toggle-t"></div></div></div>
-          <div class="stat" title="Restart the headless client after each raid ends"><span class="stat-l">RAR</span><div class="toggle" id="togHlRaid" data-hover><div class="toggle-t"></div></div></div>
         </div>
+        <div class="set-row" title="Restart the headless after this many raids (0 = disabled)"><span class="set-row-lbl">Restart After Raids</span><span class="set-row-val" id="hlRarVal">0</span></div>
+        <div class="slider-wrap" id="rarSliderWrap"><div class="slider-track"><div class="slider-fill"></div><div class="slider-thumb" data-hover></div></div></div>
         <div class="pair-row">
-          <div class="pair-item" title="Delay before starting the headless client (allows server to fully load)"><span class="stat-l">Start Delay</span><span class="set-row-val" id="hlDelay">30s</span></div>
           <div class="pair-item" style="flex:0;" title="Profile is auto-read from HeadlessConfig.json"><span class="stat-l">Profile</span><span class="set-row-val" id="hlProfile">--</span></div>
         </div>
         <div class="crash-row"><span class="stat-l">Restarts / Crashes Today</span><span class="crash-val zero" id="hlCrash">0</span></div>
@@ -2186,8 +2190,7 @@ const toggleActions = {
   togSptRst: 'toggle_spt_autorst',
   togSptAs: 'toggle_spt_autostart',
   togHlRst: 'toggle_hl_autorst',
-  togHlAs: 'toggle_hl_autostart',
-  togHlRaid: 'toggle_hl_raidrestart'
+  togHlAs: 'toggle_hl_autostart'
 };
 Object.entries(toggleActions).forEach(([id, action]) => {
   document.getElementById(id).addEventListener('click', () => send(action));
@@ -2279,6 +2282,51 @@ document.querySelector('.bb-btn--quit').addEventListener('click', () => send('qu
   window._sliderDragging = () => dragging;
 })();
 
+// ── RAR slider (0-6 raids) ──
+(function() {
+  const wrap = document.getElementById('rarSliderWrap');
+  const track = wrap.querySelector('.slider-track');
+  const fill = wrap.querySelector('.slider-fill');
+  const thumb = wrap.querySelector('.slider-thumb');
+  let dragging = false;
+  let currentVal = 0;
+
+  function setVisual(val) {
+    val = Math.max(0, Math.min(6, Math.round(val)));
+    currentVal = val;
+    const pct = (val / 6) * 100;
+    fill.style.width = pct + '%';
+    thumb.style.left = pct + '%';
+    document.getElementById('hlRarVal').textContent = val === 0 ? 'Off' : val + (val === 1 ? ' raid' : ' raids');
+  }
+
+  function getValFromX(clientX) {
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round(pct * 6);
+  }
+
+  wrap.addEventListener('mousedown', e => {
+    dragging = true;
+    setVisual(getValFromX(e.clientX));
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    setVisual(getValFromX(e.clientX));
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    send('set_rar_count', currentVal);
+  });
+
+  window._setRarValue = setVisual;
+  window._rarDragging = () => dragging;
+})();
+
 // ── Sentinel label update ──
 function updateSentinelLabel() {
   const el = document.getElementById('wsSentinel');
@@ -2300,11 +2348,19 @@ window.updateState = function(s) {
   state.sptRunning = s.spt.running;
   const sptPanel = document.getElementById('panelSPT');
   const sptBadge = document.getElementById('badgeSPT');
-  sptPanel.className = s.spt.running ? 'panel running' : 'panel stopped';
-  sptBadge.className = s.spt.running ? 'badge badge--g' : 'badge badge--r';
-  sptBadge.innerHTML = s.spt.running
-    ? '<span class="badge-dot"></span>Running'
-    : '<span class="badge-dot"></span>Stopped';
+  if (!s.spt.running) {
+    sptPanel.className = 'panel stopped';
+    sptBadge.className = 'badge badge--r';
+    sptBadge.innerHTML = '<span class="badge-dot"></span>Stopped';
+  } else if (!s.spt.ready) {
+    sptPanel.className = 'panel starting';
+    sptBadge.className = 'badge badge--a';
+    sptBadge.innerHTML = '<span class="badge-dot"></span>Starting';
+  } else {
+    sptPanel.className = 'panel running';
+    sptBadge.className = 'badge badge--g';
+    sptBadge.innerHTML = '<span class="badge-dot"></span>Ready';
+  }
 
   const sptUp = document.getElementById('sptUp');
   sptUp.textContent = s.spt.uptime;
@@ -2337,11 +2393,23 @@ window.updateState = function(s) {
   state.hlRunning = s.headless.running;
   const hlPanel = document.getElementById('panelHL');
   const hlBadge = document.getElementById('badgeHL');
-  hlPanel.className = s.headless.running ? 'panel running' : 'panel stopped';
-  hlBadge.className = s.headless.running ? 'badge badge--g' : 'badge badge--r';
-  hlBadge.innerHTML = s.headless.running
-    ? '<span class="badge-dot"></span>Running'
-    : '<span class="badge-dot"></span>Stopped';
+  if (!s.headless.running && s.headless.waitingForServer) {
+    hlPanel.className = 'panel starting';
+    hlBadge.className = 'badge badge--a';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Waiting for Server';
+  } else if (!s.headless.running) {
+    hlPanel.className = 'panel stopped';
+    hlBadge.className = 'badge badge--r';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Stopped';
+  } else if (!s.headless.ready) {
+    hlPanel.className = 'panel starting';
+    hlBadge.className = 'badge badge--a';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Starting';
+  } else {
+    hlPanel.className = 'panel running';
+    hlBadge.className = 'badge badge--g';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Ready';
+  }
 
   const hlUp = document.getElementById('hlUp');
   hlUp.textContent = s.headless.uptime;
@@ -2354,11 +2422,14 @@ window.updateState = function(s) {
   // Headless toggles
   document.getElementById('togHlRst').className = s.headless.autoRestart ? 'toggle on' : 'toggle';
   document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
-  document.getElementById('togHlRaid').className = s.headless.restartAfterRaids ? 'toggle on' : 'toggle';
   document.getElementById('togHlHidden').className = s.headless.showConsole ? 'toggle' : 'toggle on';
 
-  // Headless start delay + profile
-  document.getElementById('hlDelay').textContent = s.headless.startDelay + 's';
+  // RAR slider (skip if user is dragging)
+  if (!window._rarDragging || !window._rarDragging()) {
+    if (window._setRarValue) window._setRarValue(s.headless.rarCount);
+  }
+
+  // Headless profile
   document.getElementById('hlProfile').textContent = s.headless.profileName || s.headless.profileId || '--';
 
   // Headless crashes

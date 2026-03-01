@@ -122,6 +122,7 @@ public partial class MainWindow : Window
                 spt = new
                 {
                     running = svr.Running,
+                    ready = _server.ServerReady,
                     uptime = svr.Running ? svr.Uptime : "--",
                     pid = svr.Running ? (svr.Pid?.ToString() ?? "--") : "--",
                     autoRestart = _config.Watchdog.AutoRestartOnCrash,
@@ -133,12 +134,13 @@ public partial class MainWindow : Window
                 headless = new
                 {
                     running = hdl.Running,
+                    ready = _headless.HeadlessReady,
+                    waitingForServer = _headless.WaitingForServer,
                     uptime = hdl.Running ? hdl.Uptime : "--",
                     pid = hdl.Running ? (hdl.Pid?.ToString() ?? "--") : "--",
                     autoRestart = _config.Headless.AutoRestart,
                     autoStart = _config.Headless.AutoStart,
-                    restartAfterRaids = _config.Headless.RestartAfterRaids > 0,
-                    startDelay = _config.Headless.AutoStartDelaySec,
+                    rarCount = _config.Headless.RestartAfterRaids,
                     crashesToday = hdl.RestartCount,
                     showConsole = _config.Watchdog.ShowHeadlessConsole
                 },
@@ -223,11 +225,18 @@ public partial class MainWindow : Window
                     break;
                 case "toggle_hl_autostart":
                     _config.Headless.AutoStart = !_config.Headless.AutoStart;
+                    if (_config.Headless.AutoStart)
+                        _headless.StartAutoStartTimer(() => _server.ServerReady);
+                    else
+                        _headless.CancelAutoStart();
                     DebounceSaveConfig();
                     break;
-                case "toggle_hl_raidrestart":
-                    _config.Headless.RestartAfterRaids = _config.Headless.RestartAfterRaids > 0 ? 0 : 1;
-                    DebounceSaveConfig();
+                case "set_rar_count":
+                    if (value.ValueKind == JsonValueKind.Number)
+                    {
+                        _config.Headless.RestartAfterRaids = Math.Clamp(value.GetInt32(), 0, 6);
+                        DebounceSaveConfig();
+                    }
                     break;
 
                 // Session timeout slider
