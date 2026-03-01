@@ -41,6 +41,12 @@ public class WatchdogSection
 
     [JsonPropertyName("minimizeToTray")]
     public bool MinimizeToTray { get; set; } = false;
+
+    [JsonPropertyName("startHidden")]
+    public bool StartHidden { get; set; } = false;
+
+    [JsonPropertyName("showHeadlessConsole")]
+    public bool ShowHeadlessConsole { get; set; } = true;
 }
 
 public class HeadlessSection

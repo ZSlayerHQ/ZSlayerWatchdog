@@ -29,10 +29,15 @@ public partial class App : System.Windows.Application
 
         var serverManager = new ServerProcessManager(config.Watchdog, sptRoot, Log);
         serverManager.Configure();
+        // StartHidden overrides both — hide server and headless consoles on startup
+        var showServer = !config.Watchdog.StartHidden;
+        var showHeadless = config.Watchdog.StartHidden ? false : config.Watchdog.ShowHeadlessConsole;
+        serverManager.SetConsoleVisible(showServer);
 
         var headlessManager = new HeadlessProcessManager(config.Headless, sptRoot, Log);
         headlessManager.SetServerManager(serverManager);
         headlessManager.Configure();
+        headlessManager.SetConsoleVisible(showHeadless);
 
         // Discover server URL: watchdog-config → HeadlessConfig.json → http.json fallback
         var serverUrl = DiscoverServerUrl(watchdogConfig, sptRoot, serverManager);

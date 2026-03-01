@@ -18,6 +18,7 @@ public class ServerProcessManager
     private string _workingDir = "";
     private bool _available;
     private bool _stopping;
+    private bool _consoleVisible = true;
     private CancellationTokenSource? _readinessCts;
     private readonly List<string> _consoleBuffer = new();
     private const int MaxConsoleLines = 50;
@@ -177,11 +178,26 @@ public class ServerProcessManager
 
         try
         {
-            var psi = new ProcessStartInfo(_exePath)
+            ProcessStartInfo psi;
+            if (_consoleVisible)
             {
-                WorkingDirectory = _workingDir,
-                UseShellExecute = true
-            };
+                // Normal launch — Windows Terminal hosts the console
+                psi = new ProcessStartInfo(_exePath)
+                {
+                    WorkingDirectory = _workingDir,
+                    UseShellExecute = true
+                };
+            }
+            else
+            {
+                // Hidden launch — no window created at all
+                psi = new ProcessStartInfo(_exePath)
+                {
+                    WorkingDirectory = _workingDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+            }
 
             _process = Process.Start(psi);
             if (_process != null)
@@ -191,6 +207,7 @@ public class ServerProcessManager
                 _startedAt = DateTime.UtcNow;
                 lock (_consoleBuffer) _consoleBuffer.Clear();
                 _log($"Server started (PID {_process.Id})");
+
                 StartReadinessProbe();
             }
         }
@@ -228,6 +245,12 @@ public class ServerProcessManager
         Stop();
         Start();
     }
+
+    /// <summary>
+    /// Sets whether the server console starts minimized to the taskbar.
+    /// Takes effect on next server start (cannot hide Windows Terminal windows at runtime).
+    /// </summary>
+    public void SetConsoleVisible(bool visible) => _consoleVisible = visible;
 
     /// <summary>
     /// Starts a background task that polls the server's HTTP endpoint until it responds,

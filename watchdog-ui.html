@@ -377,7 +377,11 @@ body{
       <div class="bb-left">
         <div class="bb-status" id="bbStatus"><span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span></div>
         <span class="bb-sep">|</span>
-        <div class="bb-tray">Minimize to Tray <div class="toggle" id="togTray" data-hover><div class="toggle-t"></div></div></div>
+        <div class="bb-tray" title="Hide the SPT server terminal window on startup (takes effect on next server start)">Server Hidden <div class="toggle" id="togStartHidden" data-hover><div class="toggle-t"></div></div></div>
+        <span class="bb-sep">|</span>
+        <div class="bb-tray" title="Hide the headless BepInEx console window (toggles immediately)">Headless Hidden <div class="toggle" id="togHlHidden" data-hover><div class="toggle-t"></div></div></div>
+        <span class="bb-sep">|</span>
+        <div class="bb-tray" title="Minimize the Watchdog to the system tray instead of the taskbar when closed">Minimize to Tray <div class="toggle" id="togTray" data-hover><div class="toggle-t"></div></div></div>
       </div>
       <div class="bb-right">
         <button class="bb-btn bb-btn--cmd" data-hover>OPEN COMMAND CENTER</button>
@@ -2188,11 +2192,11 @@ const toggleActions = {
 Object.entries(toggleActions).forEach(([id, action]) => {
   document.getElementById(id).addEventListener('click', () => send(action));
 });
-// Tray toggle — no C# state push, so flip CSS locally as feedback
-document.getElementById('togTray').addEventListener('click', function() {
-  this.classList.toggle('on');
-  send('toggle_tray');
-});
+// Tray toggle — state pushed from C#
+document.getElementById('togTray').addEventListener('click', () => send('toggle_tray'));
+// Console toggles — state pushed from C#
+document.getElementById('togStartHidden').addEventListener('click', () => send('toggle_start_hidden'));
+document.getElementById('togHlHidden').addEventListener('click', () => send('toggle_hl_console'));
 
 // Button ripple
 document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
@@ -2313,7 +2317,7 @@ window.updateState = function(s) {
   // SPT toggles
   document.getElementById('togSptRst').className = s.spt.autoRestart ? 'toggle on' : 'toggle';
   document.getElementById('togSptAs').className = s.spt.autoStart ? 'toggle on' : 'toggle';
-
+  document.getElementById('togStartHidden').className = s.spt.startHidden ? 'toggle on' : 'toggle';
   // Session timeout slider (skip if user is dragging)
   if (!window._sliderDragging || !window._sliderDragging()) {
     if (window._setSliderValue) window._setSliderValue(s.spt.sessionTimeout);
@@ -2351,6 +2355,7 @@ window.updateState = function(s) {
   document.getElementById('togHlRst').className = s.headless.autoRestart ? 'toggle on' : 'toggle';
   document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
   document.getElementById('togHlRaid').className = s.headless.restartAfterRaids ? 'toggle on' : 'toggle';
+  document.getElementById('togHlHidden').className = s.headless.showConsole ? 'toggle' : 'toggle on';
 
   // Headless start delay + profile
   document.getElementById('hlDelay').textContent = s.headless.startDelay + 's';
@@ -2378,6 +2383,9 @@ window.updateState = function(s) {
     dcBanner.classList.add('show');
     state.connected = false;
   }
+
+  // Bottom bar toggles
+  document.getElementById('togTray').className = s.minimizeToTray ? 'toggle on' : 'toggle';
 
   // Auth override badge
   const overrideBadge = document.querySelector('.override-badge');

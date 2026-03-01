@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -6,6 +7,33 @@ namespace ZSlayerCommandCenter.Launcher;
 
 public class HeadlessProcessManager
 {
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AttachConsole(uint dwProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetConsoleWindow();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool FreeConsole();
+
+    private const int SW_HIDE = 0;
+    private const int SW_RESTORE = 9;
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x80;
+    private const int WS_EX_APPWINDOW = 0x40000;
+
     private readonly HeadlessSection _config;
     private readonly string _sptRoot;
     private readonly Action<string> _log;
@@ -22,6 +50,8 @@ public class HeadlessProcessManager
     private CancellationTokenSource? _rarCts;
     private readonly List<string> _consoleBuffer = new();
     private const int MaxConsoleLines = 50;
+    private bool _consoleVisible = true;
+    private readonly List<IntPtr> _windowHandles = new();
 
     public bool IsRunning => _process != null && !_process.HasExited;
 
@@ -176,7 +206,7 @@ public class HeadlessProcessManager
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = false
             };
 
             _process = Process.Start(psi);
@@ -193,6 +223,16 @@ public class HeadlessProcessManager
                 lock (_consoleBuffer) _consoleBuffer.Clear();
 
                 _log($"Headless started (PID {_process.Id})");
+
+                // Apply console visibility (delay briefly for window to appear)
+                if (!_consoleVisible)
+                {
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(500);
+                        ApplyConsoleVisibility();
+                    });
+                }
             }
         }
         catch (Exception ex)
@@ -226,6 +266,7 @@ public class HeadlessProcessManager
 
         _process = null;
         _startedAt = null;
+        _windowHandles.Clear();
         return GetStatus();
     }
 
@@ -266,6 +307,62 @@ public class HeadlessProcessManager
     {
         Stop();
         return Start();
+    }
+
+    public void SetConsoleVisible(bool visible)
+    {
+        _consoleVisible = visible;
+        ApplyConsoleVisibility();
+    }
+
+    private void DiscoverWindows()
+    {
+        if (_process == null || _process.HasExited) return;
+        _windowHandles.Clear();
+        var pid = (uint)_process.Id;
+
+        // Only get the console window (BepInEx) — do NOT enumerate all process windows
+        // (EFT creates Default IME, MFC, and game windows that should never be touched)
+        FreeConsole();
+        if (AttachConsole(pid))
+        {
+            var hConsole = GetConsoleWindow();
+            if (hConsole != IntPtr.Zero)
+                _windowHandles.Add(hConsole);
+            FreeConsole();
+        }
+    }
+
+    private void ApplyConsoleVisibility()
+    {
+        if (_process == null || _process.HasExited) return;
+        try
+        {
+            if (_windowHandles.Count == 0)
+                DiscoverWindows();
+
+            foreach (var hWnd in _windowHandles)
+            {
+                if (_consoleVisible)
+                {
+                    var style = (long)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+                    style &= ~WS_EX_TOOLWINDOW;
+                    style |= WS_EX_APPWINDOW;
+                    SetWindowLongPtr(hWnd, GWL_EXSTYLE, (IntPtr)style);
+                    ShowWindow(hWnd, SW_RESTORE);
+                    SetForegroundWindow(hWnd);
+                }
+                else
+                {
+                    ShowWindow(hWnd, SW_HIDE);
+                    var style = (long)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+                    style |= WS_EX_TOOLWINDOW;
+                    style &= ~WS_EX_APPWINDOW;
+                    SetWindowLongPtr(hWnd, GWL_EXSTYLE, (IntPtr)style);
+                }
+            }
+        }
+        catch { /* process may have exited */ }
     }
 
     public HeadlessStatusDto GetStatus(string? error = null)
@@ -356,6 +453,7 @@ public class HeadlessProcessManager
         _restartCount++;
         _process = null;
         _startedAt = null;
+        _windowHandles.Clear();
 
         _log($"Headless exited (code {exitCode}), crash #{_restartCount}");
 

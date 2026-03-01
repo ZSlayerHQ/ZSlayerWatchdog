@@ -127,7 +127,8 @@ public partial class MainWindow : Window
                     autoRestart = _config.Watchdog.AutoRestartOnCrash,
                     autoStart = _config.Watchdog.AutoStartServer,
                     sessionTimeout = _config.Watchdog.SessionTimeoutMin,
-                    crashesToday = svr.RestartCount
+                    crashesToday = svr.RestartCount,
+                    startHidden = _config.Watchdog.StartHidden
                 },
                 headless = new
                 {
@@ -138,7 +139,8 @@ public partial class MainWindow : Window
                     autoStart = _config.Headless.AutoStart,
                     restartAfterRaids = _config.Headless.RestartAfterRaids > 0,
                     startDelay = _config.Headless.AutoStartDelaySec,
-                    crashesToday = hdl.RestartCount
+                    crashesToday = hdl.RestartCount,
+                    showConsole = _config.Watchdog.ShowHeadlessConsole
                 },
                 connection = new
                 {
@@ -151,6 +153,7 @@ public partial class MainWindow : Window
                     ramUsedGB = Math.Round(stats.RamUsedGB, 1),
                     ramTotalGB = Math.Round(stats.RamTotalGB, 1)
                 },
+                minimizeToTray = _config.Watchdog.MinimizeToTray,
                 crashEvent = _pendingCrashEvent
             };
 
@@ -256,6 +259,22 @@ public partial class MainWindow : Window
                 // Tray
                 case "toggle_tray":
                     _config.Watchdog.MinimizeToTray = !_config.Watchdog.MinimizeToTray;
+                    DebounceSaveConfig();
+                    break;
+
+                // Console window toggles
+                case "toggle_start_hidden":
+                    _config.Watchdog.StartHidden = !_config.Watchdog.StartHidden;
+                    // Apply to both managers (takes effect on next start/restart)
+                    _server.SetConsoleVisible(!_config.Watchdog.StartHidden);
+                    if (_config.Watchdog.StartHidden)
+                        _headless.SetConsoleVisible(false);
+                    DebounceSaveConfig();
+                    break;
+                case "toggle_hl_console":
+                    // "Headless Hidden" toggle — ON means hidden, so invert for visibility
+                    _config.Watchdog.ShowHeadlessConsole = !_config.Watchdog.ShowHeadlessConsole;
+                    _headless.SetConsoleVisible(_config.Watchdog.ShowHeadlessConsole);
                     DebounceSaveConfig();
                     break;
 
