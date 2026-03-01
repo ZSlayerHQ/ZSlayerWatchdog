@@ -33,13 +33,9 @@ body{
 }
 
 /* ═══ CURSOR ═══ */
-.cur{position:fixed;pointer-events:none;z-index:99999;border-radius:50%;will-change:transform;}
-.cur-dot{width:5px;height:5px;background:var(--amber);box-shadow:0 0 10px var(--amber-glow),0 0 3px var(--amber);transform:translate(-50%,-50%);}
-.cur-ring{width:30px;height:30px;border:1.5px solid var(--amber-dim);transform:translate(-50%,-50%);
-  transition:width .22s cubic-bezier(.16,1,.3,1),height .22s cubic-bezier(.16,1,.3,1),border-color .2s,background .2s,box-shadow .2s;}
-.cur-ring.h{width:46px;height:46px;border-color:var(--amber);background:rgba(212,160,50,.06);box-shadow:0 0 15px rgba(212,160,50,.1);}
-.cur-ring.h-green{border-color:var(--green-bright);background:rgba(76,175,80,.06);box-shadow:0 0 15px var(--green-glow);}
-.cur-ring.h-red{border-color:var(--red-bright);background:rgba(231,76,60,.06);box-shadow:0 0 15px var(--red-glow);}
+.cur{position:fixed;pointer-events:none;z-index:99999;will-change:transform;}
+.cur-dot{width:4px;height:4px;transform:translate(-50%,-50%) rotate(45deg);background:var(--amber);box-shadow:0 0 8px var(--amber-glow),0 0 3px var(--amber);}
+.cur-reticle{transform:translate(-50%,-50%);}
 
 /* ═══ CANVASES ═══ */
 .cv{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
@@ -264,7 +260,7 @@ body{
 <body>
 
 <div class="cur cur-dot" id="cDot"></div>
-<div class="cur cur-ring" id="cRing"></div>
+<canvas class="cur cur-reticle" id="cReticle" width="80" height="80"></canvas>
 
 <div class="app-window" id="appWin">
   <!-- Canvases -->
@@ -435,8 +431,101 @@ window.addEventListener('resize', resize);
 // ═══ MOUSE STATE ═══
 const mouse = { x: W/2, y: H/2, rx: 0.5, ry: 0.5, vx: 0, vy: 0, lastX: W/2, lastY: H/2 };
 const curDot = document.getElementById('cDot');
-const curRing = document.getElementById('cRing');
+const cRetCv = document.getElementById('cReticle');
+const cRetCtx = cRetCv.getContext('2d');
 let ringX = 0, ringY = 0;
+
+// Reticle state
+const reticle = {
+  hue: 'amber', // 'amber','green','red'
+  hovering: false,
+  spinAngle: 0,
+  curRadius: 15,
+  targetRadius: 15,
+  curAlpha: 0.45,
+  targetAlpha: 0.45,
+  curGlow: 0,
+  targetGlow: 0,
+  speed: 0,
+};
+
+const RET_COLORS = {
+  amber: { r: 212, g: 160, b: 50 },
+  green: { r: 102, g: 217, b: 106 },
+  red: { r: 231, g: 76, b: 60 },
+};
+
+function drawReticle() {
+  const S = 80, cx = S/2, cy = S/2;
+  cRetCtx.clearRect(0, 0, S, S);
+  
+  const col = RET_COLORS[reticle.hue] || RET_COLORS.amber;
+  const r = reticle.curRadius;
+  const a = reticle.curAlpha;
+  const glow = reticle.curGlow;
+  const spin = reticle.spinAngle;
+  
+  cRetCtx.lineCap = 'round';
+  
+  // Outer glow (hover state)
+  if (glow > 0.01) {
+    const grd = cRetCtx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 2);
+    grd.addColorStop(0, `rgba(${col.r},${col.g},${col.b},${(glow * 0.08).toFixed(3)})`);
+    grd.addColorStop(1, 'transparent');
+    cRetCtx.fillStyle = grd;
+    cRetCtx.fillRect(0, 0, S, S);
+  }
+  
+  // 4 arc segments (rotating) — the main ring
+  const segGap = reticle.hovering ? 0.12 : 0.35; // tighter on hover
+  const segLen = (Math.PI / 2) - segGap;
+  cRetCtx.lineWidth = reticle.hovering ? 1.6 : 1.2;
+  
+  for (let i = 0; i < 4; i++) {
+    const startA = spin + i * (Math.PI / 2) + segGap / 2;
+    cRetCtx.beginPath();
+    cRetCtx.arc(cx, cy, r, startA, startA + segLen);
+    cRetCtx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${a.toFixed(3)})`;
+    cRetCtx.stroke();
+  }
+  
+  // Inner thin ring (counter-rotating, smaller)
+  const ir = r * 0.55;
+  cRetCtx.lineWidth = 0.6;
+  for (let i = 0; i < 4; i++) {
+    const startA = -spin * 1.4 + i * (Math.PI / 2) + 0.2;
+    cRetCtx.beginPath();
+    cRetCtx.arc(cx, cy, ir, startA, startA + (Math.PI / 2) - 0.4);
+    cRetCtx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${(a * 0.35).toFixed(3)})`;
+    cRetCtx.stroke();
+  }
+  
+  // 4 crosshair ticks (counter-rotating)
+  const tickInner = r + 3;
+  const tickOuter = r + (reticle.hovering ? 9 : 6);
+  cRetCtx.lineWidth = reticle.hovering ? 1.4 : 1;
+  
+  for (let i = 0; i < 4; i++) {
+    const ta = -spin * 0.6 + i * (Math.PI / 2);
+    const cos = Math.cos(ta), sin = Math.sin(ta);
+    cRetCtx.beginPath();
+    cRetCtx.moveTo(cx + cos * tickInner, cy + sin * tickInner);
+    cRetCtx.lineTo(cx + cos * tickOuter, cy + sin * tickOuter);
+    cRetCtx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${(a * 0.7).toFixed(3)})`;
+    cRetCtx.stroke();
+  }
+  
+  // Center dot glow (small radial)
+  if (glow > 0.01) {
+    const cGrd = cRetCtx.createRadialGradient(cx, cy, 0, cx, cy, 5);
+    cGrd.addColorStop(0, `rgba(${col.r},${col.g},${col.b},${(glow * 0.25).toFixed(3)})`);
+    cGrd.addColorStop(1, 'transparent');
+    cRetCtx.fillStyle = cGrd;
+    cRetCtx.beginPath();
+    cRetCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+    cRetCtx.fill();
+  }
+}
 
 document.addEventListener('mousemove', e => {
   mouse.x = e.clientX - winRect.left;
@@ -451,17 +540,33 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('mouseover', e => {
   const el = e.target.closest('[data-hover]');
   const btn = e.target.closest('.btn,.abtn,.bb-btn');
-  curRing.className = 'cur cur-ring';
+  reticle.hovering = false;
+  reticle.hue = 'amber';
+  reticle.targetRadius = 15;
+  reticle.targetAlpha = 0.45;
+  reticle.targetGlow = 0;
   if (btn) {
-    if (btn.classList.contains('btn--start') || btn.classList.contains('abtn--save')) curRing.classList.add('h','h-green');
-    else if (btn.classList.contains('btn--stop') || btn.classList.contains('abtn--clear') || btn.classList.contains('bb-btn--quit')) curRing.classList.add('h','h-red');
-    else curRing.classList.add('h');
+    reticle.hovering = true;
+    reticle.targetRadius = 20;
+    reticle.targetAlpha = 0.85;
+    reticle.targetGlow = 1;
+    if (btn.classList.contains('btn--start') || btn.classList.contains('abtn--save')) reticle.hue = 'green';
+    else if (btn.classList.contains('btn--stop') || btn.classList.contains('abtn--clear') || btn.classList.contains('bb-btn--quit')) reticle.hue = 'red';
   } else if (el) {
-    curRing.classList.add('h');
+    reticle.hovering = true;
+    reticle.targetRadius = 18;
+    reticle.targetAlpha = 0.7;
+    reticle.targetGlow = 0.6;
   }
 });
 document.addEventListener('mouseout', e => {
-  if (e.target.closest('[data-hover]') || e.target.closest('.btn,.abtn,.bb-btn')) curRing.className = 'cur cur-ring';
+  if (e.target.closest('[data-hover]') || e.target.closest('.btn,.abtn,.bb-btn')) {
+    reticle.hovering = false;
+    reticle.hue = 'amber';
+    reticle.targetRadius = 15;
+    reticle.targetAlpha = 0.45;
+    reticle.targetGlow = 0;
+  }
 });
 
 // ═══ STATE ═══
@@ -518,36 +623,47 @@ function drawGlow() {
   gCtx.fillRect(0, 0, W, H);
 }
 
-// Pulse ring system — sonar heartbeat from wolf's nose
+// Pulse ring system — sonar heartbeat with gravity well cursor interaction
 const pulseRings = [];
 let pulseTimer = 0;
+const orbitFrags = []; // energy fragments orbiting cursor after ring capture
+let reticleFlare = 0; // extra glow when pulse passes through cursor
 
 function getPulseConfig() {
   switch (state.wolfState) {
-    case 'healthy': return { interval: 120, color: [212,160,50], maxR: 500, alpha: 0.66 };
-    case 'vigilant': return { interval: 90, color: [212,160,50], maxR: 540, alpha: 0.84 };
-    case 'alert': return { interval: 40, color: [231,76,60], maxR: 600, alpha: 1.0 };
-    case 'dormant': return { interval: 220, color: [100,80,50], maxR: 400, alpha: 0.36 };
-    default: return { interval: 350, color: [60,50,35], maxR: 300, alpha: 0.18 };
+    case 'healthy': return { interval: 360, color: [212,160,50], maxR: 500, alpha: 0.66, speed: 0.7 };
+    case 'vigilant': return { interval: 270, color: [212,160,50], maxR: 540, alpha: 0.84, speed: 0.7 };
+    case 'alert': return { interval: 120, color: [231,76,60], maxR: 600, alpha: 1.0, speed: 0.84 };
+    case 'dormant': return { interval: 480, color: [100,80,50], maxR: 400, alpha: 0.36, speed: 0.49 };
+    default: return { interval: 550, color: [60,50,35], maxR: 300, alpha: 0.18, speed: 0.42 };
   }
 }
+
+const PULSE_PTS = 128; // resolution of warped ring
+const GRAVITY_STRENGTH = 2800; // pull intensity
+const GRAVITY_RADIUS = 140; // max influence distance
+const CAPTURE_THRESHOLD = 25; // how close ring must pass to trigger capture
 
 function drawPulseRings(ctx) {
   const cfg = getPulseConfig();
   const ox = wolfCx + shakeX, oy = wolfCy + (-23) * 2.6 + shakeY;
+  // Cursor position in canvas space
+  const mx = mouse.x, my = mouse.y;
 
   // Spawn new ring
   pulseTimer -= df;
   if (pulseTimer <= 0) {
-    pulseRings.push({ r: 15, life: 1 });
+    pulseRings.push({ r: 15, life: 1, captured: false });
     pulseTimer = cfg.interval;
   }
+
+  const [cr, cg, cb] = cfg.color;
 
   // Update and draw rings
   for (let i = pulseRings.length - 1; i >= 0; i--) {
     const ring = pulseRings[i];
-    ring.r += (1.8 + ring.r * 0.008) * df;
-    ring.life -= (0.006 + ring.r * 0.000015) * df;
+    ring.r += (1.8 + ring.r * 0.008) * cfg.speed * df;
+    ring.life -= (0.006 + ring.r * 0.00001) * cfg.speed * df;
 
     if (ring.life <= 0 || ring.r > cfg.maxR) {
       pulseRings.splice(i, 1);
@@ -556,36 +672,63 @@ function drawPulseRings(ctx) {
 
     const alpha = ring.life * cfg.alpha;
     const width = 2.5 + (1 - ring.life) * 0.5;
-    const [cr, cg, cb] = cfg.color;
 
-    // Sonar sweep — filled gradient band trailing behind the leading edge
-    if (ring.r > 20) {
-      const sweepWidth = Math.min(ring.r * 0.4, 60);
-      const innerR = Math.max(0, ring.r - sweepWidth);
-      const sweep = ctx.createRadialGradient(ox, oy, innerR, ox, oy, ring.r);
-      sweep.addColorStop(0, `rgba(${cr},${cg},${cb},0)`);
-      sweep.addColorStop(0.7, `rgba(${cr},${cg},${cb},${(alpha * 0.15).toFixed(4)})`);
-      sweep.addColorStop(1, `rgba(${cr},${cg},${cb},${(alpha * 0.4).toFixed(4)})`);
-      ctx.beginPath();
-      ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
-      ctx.arc(ox, oy, innerR, 0, Math.PI * 2, true);
-      ctx.fillStyle = sweep;
-      ctx.fill();
+    // Distance from ring origin to cursor
+    const dxCur = mx - ox, dyCur = my - oy;
+    const curDist = Math.sqrt(dxCur * dxCur + dyCur * dyCur);
+    const ringCursorGap = Math.abs(curDist - ring.r);
+
+    // Capture detection — ring edge passes through cursor
+    if (!ring.captured && ringCursorGap < CAPTURE_THRESHOLD && ring.r > 30) {
+      ring.captured = true;
+      reticleFlare = 0.6;
+      reticle.spinAngle += 0.2; // spin burst
+      // Spawn orbit fragments
+      const fragCount = 2 + Math.floor(Math.random() * 3);
+      for (let f = 0; f < fragCount; f++) {
+        const angle = Math.random() * Math.PI * 2;
+        orbitFrags.push({
+          angle: angle,
+          orbitR: 18 + Math.random() * 14,
+          speed: (0.03 + Math.random() * 0.04) * (Math.random() < 0.5 ? 1 : -1),
+          life: 1,
+          size: 1 + Math.random() * 1.8,
+          decay: 0.008 + Math.random() * 0.006,
+          cr, cg, cb,
+        });
+      }
     }
 
-    // Sharp leading edge
-    ctx.beginPath();
-    ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(4)})`;
-    ctx.lineWidth = width;
-    ctx.stroke();
+    // ── WARPED RING — NEON GLOW (layered bloom) ──
 
-    // Outer glow halo
-    ctx.beginPath();
-    ctx.arc(ox, oy, ring.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${(alpha * 0.25).toFixed(4)})`;
-    ctx.lineWidth = width * 6;
-    ctx.stroke();
+    // Build warped path once, reuse for all layers
+    const warpedPts = [];
+    for (let p = 0; p <= PULSE_PTS; p++) {
+      const theta = (p / PULSE_PTS) * Math.PI * 2;
+      const px = ox + Math.cos(theta) * ring.r;
+      const py = oy + Math.sin(theta) * ring.r;
+      warpedPts.push(gravityWarp(px, py, mx, my));
+    }
+
+    function strokeWarped(w, a) {
+      ctx.beginPath();
+      for (let p = 0; p < warpedPts.length; p++) {
+        if (p === 0) ctx.moveTo(warpedPts[p][0], warpedPts[p][1]);
+        else ctx.lineTo(warpedPts[p][0], warpedPts[p][1]);
+      }
+      ctx.lineWidth = w;
+      ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a.toFixed(4)})`;
+      ctx.stroke();
+    }
+
+    // Outermost bloom (very wide, very faint)
+    strokeWarped(18, alpha * 0.04);
+    // Mid bloom
+    strokeWarped(8, alpha * 0.08);
+    // Inner bloom
+    strokeWarped(3.5, alpha * 0.18);
+    // Crisp neon core
+    strokeWarped(1.2, alpha * 0.9);
 
     // Push nearby embers outward
     if (typeof embers !== 'undefined') {
@@ -601,6 +744,49 @@ function drawPulseRings(ctx) {
       }
     }
   }
+
+  // ── ORBIT FRAGMENTS (energy captured from pulse rings) ──
+  for (let i = orbitFrags.length - 1; i >= 0; i--) {
+    const frag = orbitFrags[i];
+    frag.angle += frag.speed * df;
+    frag.orbitR *= Math.pow(0.994, df); // spiral inward
+    frag.life -= frag.decay * df;
+    if (frag.life <= 0) { orbitFrags.splice(i, 1); continue; }
+
+    const fx = mx + Math.cos(frag.angle) * frag.orbitR;
+    const fy = my + Math.sin(frag.angle) * frag.orbitR;
+    const fa = frag.life * 0.8;
+
+    // Fragment glow
+    ctx.beginPath();
+    ctx.arc(fx, fy, frag.size + 2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${frag.cr},${frag.cg},${frag.cb},${(fa * 0.15).toFixed(3)})`;
+    ctx.fill();
+
+    // Fragment core
+    ctx.beginPath();
+    ctx.arc(fx, fy, frag.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${frag.cr},${frag.cg},${frag.cb},${fa.toFixed(3)})`;
+    ctx.fill();
+    
+
+  }
+
+  // Decay reticle flare
+  reticleFlare *= Math.pow(0.94, df);
+}
+
+// Gravitational warp — pull point toward cursor based on proximity
+function gravityWarp(px, py, mx, my) {
+  const dx = mx - px, dy = my - py;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > GRAVITY_RADIUS || dist < 1) return [px, py];
+  const t = 1 - dist / GRAVITY_RADIUS;
+  const push = GRAVITY_STRENGTH * t * t * t / (dist + 30);
+  const maxPush = dist * 0.7;
+  const clamped = Math.min(push, maxPush);
+  // Push AWAY from cursor (negative direction)
+  return [px - (dx / dist) * clamped, py - (dy / dist) * clamped];
 }
 
 // ═══ WOLF HEAD — LOW POLY MESH ═══
@@ -1358,8 +1544,8 @@ function drawWolf(time) {
   if (typeof eyeGlanceTimer === 'undefined') { eyeGlanceTimer = 120 + Math.random() * 360; eyeGlancing = 0; }
   eyeGlanceTimer -= df;
   if (eyeGlanceTimer <= 0 && eyeGlancing <= 0) {
-    eyeGlancing = 30 + Math.random() * 120; // hold center gaze for 0.5-2.5s
-    eyeGlanceTimer = 120 + Math.random() * 360; // next glance in 2-8s
+    eyeGlancing = 30 + Math.random() * 90; // hold center gaze for 0.5-2s
+    eyeGlanceTimer = 360 + Math.random() * 360; // next glance in 6-12s
   }
   if (eyeGlancing > 0) eyeGlancing -= df;
 
@@ -1369,8 +1555,8 @@ function drawWolf(time) {
   if (randLookTimer <= 0 && randLooking <= 0) {
     randLookX = 0.15 + Math.random() * 0.7;
     randLookY = 0.15 + Math.random() * 0.7;
-    randLooking = 60 + Math.random() * 90; // hold 1-2.5s
-    randLookTimer = 480 + Math.random() * 240; // next in 8-12s
+    randLooking = 60 + Math.random() * 60; // hold 1-2s
+    randLookTimer = 600 + Math.random() * 240; // next in 10-14s
   }
   if (randLooking > 0) randLooking -= df;
 
@@ -1760,12 +1946,23 @@ function loop(time) {
   lastTime = time;
   df = Math.min(dt / BASE_FRAME_MS, 3); // delta factor, capped to avoid spiral on tab-away
 
-  // Cursor ring lag
-  ringX += (mouse.x + winRect.left - ringX) * 0.12 * df;
-  ringY += (mouse.y + winRect.top - ringY) * 0.12 * df;
-  // Use pageX for ring (relative to document)
-  curRing.style.left = ringX + 'px';
-  curRing.style.top = ringY + 'px';
+  // Cursor reticle lag + animation
+  ringX += (mouse.x + winRect.left - ringX) * 0.35 * df;
+  ringY += (mouse.y + winRect.top - ringY) * 0.35 * df;
+  cRetCv.style.left = ringX + 'px';
+  cRetCv.style.top = ringY + 'px';
+  
+  // Reticle physics
+  reticle.speed = Math.sqrt(mouse.vx * mouse.vx + mouse.vy * mouse.vy);
+  const speedBoost = Math.min(reticle.speed * 0.3, 6);
+  const flareBoost = reticleFlare * 4; // pulse capture expands reticle
+  const tgtR = reticle.targetRadius + speedBoost + flareBoost;
+  reticle.curRadius += (tgtR - reticle.curRadius) * (1 - Math.pow(0.88, df));
+  reticle.curAlpha += (reticle.targetAlpha + reticleFlare * 0.5 - reticle.curAlpha) * (1 - Math.pow(0.85, df));
+  reticle.curGlow += (reticle.targetGlow + reticleFlare - reticle.curGlow) * (1 - Math.pow(0.88, df));
+  reticle.spinAngle += (0.008 + reticle.speed * 0.003 + reticleFlare * 0.04) * df;
+  
+  drawReticle();
 
   // Mouse velocity
   mouse.vx = mouse.x - mouse.lastX;
