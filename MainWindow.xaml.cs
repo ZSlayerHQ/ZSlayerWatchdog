@@ -177,8 +177,6 @@ public partial class MainWindow : Window
             var action = msg.RootElement.GetProperty("action").GetString();
             var value = msg.RootElement.TryGetProperty("value", out var val) ? val : default;
 
-            DragLog($"WebMessage received: action={action}");
-
             switch (action)
             {
                 // Server controls
@@ -310,32 +308,11 @@ public partial class MainWindow : Window
     private const uint WM_NCLBUTTONDOWN = 0x00A1;
     private const int HTCAPTION = 2;
 
-    private static readonly string _debugLog = Path.Combine(
-        Path.GetDirectoryName(Environment.ProcessPath) ?? ".", "drag-debug.log");
-
-    private static void DragLog(string msg)
-    {
-        try { File.AppendAllText(_debugLog, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n"); } catch { }
-    }
-
     private void StartWindowDrag()
     {
-        try
-        {
-            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-            DragLog($"StartWindowDrag called — hwnd={hwnd}, ThreadId={Environment.CurrentManagedThreadId}");
-            DragLog($"  Window position: Left={Left}, Top={Top}, State={WindowState}");
-
-            var released = ReleaseCapture();
-            DragLog($"  ReleaseCapture returned: {released}");
-
-            var result = SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
-            DragLog($"  SendMessage returned: {result}");
-        }
-        catch (Exception ex)
-        {
-            DragLog($"  EXCEPTION: {ex}");
-        }
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        ReleaseCapture();
+        SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
     }
 
     protected override void OnStateChanged(EventArgs e)
