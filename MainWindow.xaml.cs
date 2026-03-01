@@ -177,6 +177,8 @@ public partial class MainWindow : Window
             var action = msg.RootElement.GetProperty("action").GetString();
             var value = msg.RootElement.TryGetProperty("value", out var val) ? val : default;
 
+            DragLog($"WebMessage received: action={action}");
+
             switch (action)
             {
                 // Server controls
@@ -271,8 +273,7 @@ public partial class MainWindow : Window
                     Close();
                     break;
                 case "dragMove":
-                    ReleaseMouseCapture();
-                    DragMove();
+                    StartWindowDrag();
                     return; // skip PushStateToUI for drag
                 case "toggleMaximize":
                     WindowState = WindowState == WindowState.Maximized
@@ -296,11 +297,45 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Title bar drag (handled via HTML, but also support native) ──
-    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    // ── Title bar drag via Win32 ──
+    // WebView2 HWND sits on top of WPF (airspace), so XAML overlays don't work.
+    // Instead, when HTML sends "dragMove", we release WebView2's mouse capture
+    // and simulate a caption-bar mouse-down so Windows handles the drag natively.
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private const uint WM_NCLBUTTONDOWN = 0x00A1;
+    private const int HTCAPTION = 2;
+
+    private static readonly string _debugLog = Path.Combine(
+        Path.GetDirectoryName(Environment.ProcessPath) ?? ".", "drag-debug.log");
+
+    private static void DragLog(string msg)
     {
-        base.OnMouseLeftButtonDown(e);
-        // HTML titlebar has -webkit-app-region: drag — WebView2 handles this
+        try { File.AppendAllText(_debugLog, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n"); } catch { }
+    }
+
+    private void StartWindowDrag()
+    {
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            DragLog($"StartWindowDrag called — hwnd={hwnd}, ThreadId={Environment.CurrentManagedThreadId}");
+            DragLog($"  Window position: Left={Left}, Top={Top}, State={WindowState}");
+
+            var released = ReleaseCapture();
+            DragLog($"  ReleaseCapture returned: {released}");
+
+            var result = SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+            DragLog($"  SendMessage returned: {result}");
+        }
+        catch (Exception ex)
+        {
+            DragLog($"  EXCEPTION: {ex}");
+        }
     }
 
     protected override void OnStateChanged(EventArgs e)

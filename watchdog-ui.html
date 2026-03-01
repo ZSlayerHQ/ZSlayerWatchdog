@@ -417,20 +417,18 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// ═══ TITLEBAR WINDOW DRAG (WebView2 → WPF DragMove) ═══
+// ═══ TITLEBAR WINDOW DRAG (WebView2 → WPF) ═══
+// NOTE: must use send() which passes an object to postMessage.
+// JSON.stringify + postMessage wraps in double-encoding that C# can't parse.
 (function() {
   const titlebar = document.querySelector('.titlebar');
   titlebar.addEventListener('mousedown', e => {
     if (e.target.closest('.tb-btn')) return;
-    if (e.button === 0 && window.chrome && window.chrome.webview) {
-      window.chrome.webview.postMessage(JSON.stringify({ action: 'dragMove' }));
-    }
+    if (e.button === 0) send('dragMove');
   });
   titlebar.addEventListener('dblclick', e => {
     if (e.target.closest('.tb-btn')) return;
-    if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.postMessage(JSON.stringify({ action: 'toggleMaximize' }));
-    }
+    send('toggleMaximize');
   });
 })();
 
