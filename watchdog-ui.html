@@ -1354,6 +1354,9 @@ function blendHex(hex1, hex2, t) {
 // Eye state
 let eyeLX = 0, eyeLY = 0, eyeRX = 0, eyeRY = 0; // current offsets
 
+// Micro-saccades — tiny involuntary eye jitters
+let saccadeX = 0, saccadeY = 0, saccadeTimer = 0;
+
 // Eye reaction delay — variable for lifelike attention
 const EYE_BUF_SIZE = 24; // max buffer (~400ms at 60fps)
 const eyeBufRx = new Float64Array(EYE_BUF_SIZE);
@@ -1637,6 +1640,14 @@ function drawWolf(time) {
     wCtx.fillStyle = grd;
     wCtx.fillRect(ex - glowSize, ey - glowSize, glowSize*2, glowSize*2);
 
+    // Micro-saccades — tiny jitters both eyes share
+    saccadeTimer -= df;
+    if (saccadeTimer <= 0) {
+      saccadeX = (Math.random() - 0.5) * 0.6;
+      saccadeY = (Math.random() - 0.5) * 0.4;
+      saccadeTimer = 12 + Math.random() * 25; // 200-600ms at 60fps
+    }
+
     // Eye shape (narrow almond — inner corners tilted down for wolf aggression)
     const eyeTilt = idx === 0 ? -0.17 : 0.17;
     wCtx.save();
@@ -1644,17 +1655,76 @@ function drawWolf(time) {
     wCtx.ellipse(ex, ey, 15, 8, eyeTilt, 0, Math.PI*2);
     wCtx.clip();
 
-    // Iris
-    const iGrd = wCtx.createRadialGradient(ex + ox*0.5, ey + oy*0.5, 1, ex + ox*0.5, ey + oy*0.5, 12);
-    iGrd.addColorStop(0, eyeColor);
-    iGrd.addColorStop(0.6, lerpColor(eyeColor.length > 7 ? '#c88a20' : eyeColor, 0.7));
-    iGrd.addColorStop(1, '#2a2520');
-    wCtx.fillStyle = iGrd;
-    wCtx.fillRect(ex - 12, ey - 10, 24, 20);
+    // Sclera base (dark, almost black — wolf eyes have very little visible white)
+    wCtx.fillStyle = '#08070a';
+    wCtx.fillRect(ex - 18, ey - 15, 36, 30);
 
-    // Golden fire tendrils radiating from pupil
-    const icx = ex + ox*0.55, icy = ey + oy*0.55;
+    // Iris center with saccade offset
+    const icx = ex + (ox + saccadeX) * 0.55;
+    const icy = ey + (oy + saccadeY) * 0.55;
+    const irisR = 11;
+
+    // Iris base gradient — deeper, richer
+    const iGrd = wCtx.createRadialGradient(icx, icy, 0.5, icx, icy, irisR);
+    iGrd.addColorStop(0, eyeColor);
+    iGrd.addColorStop(0.35, eyeColor);
+    iGrd.addColorStop(0.65, lerpColor(eyeColor.length > 7 ? '#c88a20' : eyeColor, 0.7));
+    iGrd.addColorStop(0.88, '#1a1408');
+    iGrd.addColorStop(1, '#0a0804');
+    wCtx.fillStyle = iGrd;
+    wCtx.beginPath();
+    wCtx.arc(icx, icy, irisR, 0, Math.PI * 2);
+    wCtx.fill();
+
+    // ── IRIS FIBERS — radial texture like real iris strands ──
     const fireSpeed = t * 3;
+    const fiberCount = 28;
+    for (let f = 0; f < fiberCount; f++) {
+      const baseAngle = (f / fiberCount) * Math.PI * 2;
+      // Subtle waviness — fibers aren't perfectly straight
+      const wave = Math.sin(f * 3.7 + t * 0.8) * 0.08;
+      const angle = baseAngle + wave;
+      
+      // Fibers run from inner iris to outer edge
+      const innerDist = 3.2;
+      const outerDist = irisR - 0.5;
+      
+      // Varying brightness per fiber
+      const fBright = 0.3 + Math.sin(f * 2.3) * 0.15 + Math.sin(f * 5.1 + t * 1.2) * 0.05;
+      
+      const sx = icx + Math.cos(angle) * innerDist;
+      const sy = icy + Math.sin(angle) * innerDist;
+      const ex2 = icx + Math.cos(angle) * outerDist;
+      const ey2 = icy + Math.sin(angle) * outerDist;
+      
+      // Slight curvature
+      const midOff = Math.sin(f * 4.1) * 1.2;
+      const perpAngle = angle + Math.PI * 0.5;
+      const mx2 = (sx + ex2) / 2 + Math.cos(perpAngle) * midOff;
+      const my2 = (sy + ey2) / 2 + Math.sin(perpAngle) * midOff;
+      
+      wCtx.beginPath();
+      wCtx.moveTo(sx, sy);
+      wCtx.quadraticCurveTo(mx2, my2, ex2, ey2);
+      wCtx.lineWidth = 0.5 + Math.sin(f * 1.9) * 0.2;
+      wCtx.strokeStyle = `rgba(200,160,50,${fBright.toFixed(3)})`;
+      wCtx.stroke();
+    }
+
+    // ── LIMBAL RING — dark defined edge where iris meets sclera ──
+    wCtx.beginPath();
+    wCtx.arc(icx, icy, irisR, 0, Math.PI * 2);
+    wCtx.lineWidth = 1.8;
+    wCtx.strokeStyle = 'rgba(8,6,3,0.85)';
+    wCtx.stroke();
+    // Softer outer shadow
+    wCtx.beginPath();
+    wCtx.arc(icx, icy, irisR + 0.8, 0, Math.PI * 2);
+    wCtx.lineWidth = 1.2;
+    wCtx.strokeStyle = 'rgba(5,4,2,0.4)';
+    wCtx.stroke();
+
+    // ── GOLDEN FIRE TENDRILS radiating from pupil ──
     for (let f = 0; f < 14; f++) {
       const baseAngle = (f / 14) * Math.PI * 2;
       const flicker = Math.sin(fireSpeed * 2.3 + f * 1.7) * 0.4 + Math.sin(fireSpeed * 3.8 + f * 2.9) * 0.3;
@@ -1692,17 +1762,68 @@ function drawWolf(time) {
     wCtx.fillStyle = fGrd;
     wCtx.fillRect(ex - 18, ey - 15, 36, 30);
 
-    // Pupil (vertical slit)
-    const pupilWide = (mouse.x > wolfCx - 130 && mouse.x < wolfCx + 130 && mouse.y > wolfCy - 200 && mouse.y < wolfCy + 200) ? 5 : 3.5;
+    // ── PUPIL (vertical slit) with saccade ──
+    const pupilX = ex + (ox + saccadeX) * 0.6;
+    const pupilY = ey + (oy + saccadeY) * 0.6;
+    const pupilWide = (mouse.x > wolfCx - 130 && mouse.x < wolfCx + 130 && mouse.y > wolfCy - 200 && mouse.y < wolfCy + 200) ? 5 : 3.8;
     wCtx.beginPath();
-    wCtx.ellipse(ex + ox*0.6, ey + oy*0.6, pupilWide, 9, 0, 0, Math.PI*2);
+    wCtx.ellipse(pupilX, pupilY, pupilWide, 7.5, 0, 0, Math.PI*2);
     wCtx.fillStyle = '#020102';
     wCtx.fill();
 
-    // Specular
+    // ── PUPIL EMBER EDGE — molten glow where slit meets iris ──
+    const emberGlow = 0.25 + Math.sin(fireSpeed * 1.5) * 0.08;
+    // Soft radial glow hugging the pupil border
+    const emGrd = wCtx.createRadialGradient(pupilX, pupilY, pupilWide * 0.6, pupilX, pupilY, pupilWide + 4);
+    emGrd.addColorStop(0, 'rgba(255,180,40,0)');
+    emGrd.addColorStop(0.4, `rgba(255,170,35,${(emberGlow * 0.5).toFixed(3)})`);
+    emGrd.addColorStop(0.7, `rgba(230,120,20,${(emberGlow * 0.25).toFixed(3)})`);
+    emGrd.addColorStop(1, 'rgba(200,80,10,0)');
+    wCtx.fillStyle = emGrd;
     wCtx.beginPath();
-    wCtx.arc(ex + ox*0.3 + 4, ey + oy*0.3 - 3, 2.2, 0, Math.PI*2);
-    wCtx.fillStyle = 'rgba(255,255,240,0.7)';
+    wCtx.ellipse(pupilX, pupilY, pupilWide + 4, 10, 0, 0, Math.PI * 2);
+    wCtx.fill();
+
+    // ── UPPER SHADOW — brow/socket casting down into eye ──
+    const shadowGrd = wCtx.createLinearGradient(ex, ey - 10, ex, ey - 1);
+    shadowGrd.addColorStop(0, 'rgba(5,4,3,0.55)');
+    shadowGrd.addColorStop(1, 'rgba(5,4,3,0)');
+    wCtx.fillStyle = shadowGrd;
+    wCtx.fillRect(ex - 18, ey - 12, 36, 12);
+
+    // ── WET GLOSS — curved highlight across entire eye surface ──
+    const glossGrd = wCtx.createLinearGradient(ex - 10, ey - 8, ex + 6, ey - 3);
+    glossGrd.addColorStop(0, 'rgba(255,255,250,0)');
+    glossGrd.addColorStop(0.3, 'rgba(255,255,250,0.06)');
+    glossGrd.addColorStop(0.5, 'rgba(255,255,250,0.09)');
+    glossGrd.addColorStop(0.7, 'rgba(255,255,250,0.04)');
+    glossGrd.addColorStop(1, 'rgba(255,255,250,0)');
+    wCtx.fillStyle = glossGrd;
+    wCtx.beginPath();
+    wCtx.ellipse(ex, ey - 2, 13, 5, eyeTilt, 0, Math.PI * 2);
+    wCtx.fill();
+
+    // ── DUAL SPECULAR — primary sharp + secondary soft ──
+    // Primary (sharp bright dot, follows pupil)
+    const specX = pupilX + 3.5, specY = pupilY - 2.8;
+    wCtx.beginPath();
+    wCtx.arc(specX, specY, 1.6, 0, Math.PI * 2);
+    wCtx.fillStyle = 'rgba(255,255,245,0.85)';
+    wCtx.fill();
+    // Primary glow halo
+    const specGrd = wCtx.createRadialGradient(specX, specY, 0, specX, specY, 3.5);
+    specGrd.addColorStop(0, 'rgba(255,255,240,0.3)');
+    specGrd.addColorStop(1, 'rgba(255,255,240,0)');
+    wCtx.fillStyle = specGrd;
+    wCtx.beginPath();
+    wCtx.arc(specX, specY, 3.5, 0, Math.PI * 2);
+    wCtx.fill();
+
+    // Secondary (larger, softer, offset — like a window reflection)
+    const spec2X = pupilX - 2.5, spec2Y = pupilY + 2;
+    wCtx.beginPath();
+    wCtx.ellipse(spec2X, spec2Y, 2.2, 1.0, eyeTilt + 0.3, 0, Math.PI * 2);
+    wCtx.fillStyle = 'rgba(255,252,235,0.18)';
     wCtx.fill();
 
     // Eyelid (closing animation)
@@ -1713,11 +1834,17 @@ function drawWolf(time) {
 
     wCtx.restore();
 
-    // Eye outline
+    // Eye outline — slightly thicker for definition
     wCtx.beginPath();
     wCtx.ellipse(ex, ey, 15, 8, eyeTilt, 0, Math.PI*2);
-    wCtx.strokeStyle = 'rgba(26,23,20,0.6)';
-    wCtx.lineWidth = 1;
+    wCtx.strokeStyle = 'rgba(20,17,14,0.7)';
+    wCtx.lineWidth = 1.2;
+    wCtx.stroke();
+    // Subtle outer glow rim on eye outline
+    wCtx.beginPath();
+    wCtx.ellipse(ex, ey, 15.8, 8.6, eyeTilt, 0, Math.PI*2);
+    wCtx.strokeStyle = `rgba(180,140,40,${(0.06 + glowPulse * 0.03).toFixed(3)})`;
+    wCtx.lineWidth = 0.8;
     wCtx.stroke();
   });
 
