@@ -135,6 +135,7 @@ public partial class MainWindow : Window
                 {
                     running = hdl.Running,
                     ready = _headless.HeadlessReady,
+                    startupFailed = _headless.StartupFailed,
                     waitingForServer = _headless.WaitingForServer,
                     uptime = hdl.Running ? hdl.Uptime : "--",
                     pid = hdl.Running ? (hdl.Pid?.ToString() ?? "--") : "--",
@@ -142,7 +143,9 @@ public partial class MainWindow : Window
                     autoStart = _config.Headless.AutoStart,
                     rarCount = _config.Headless.RestartAfterRaids,
                     crashesToday = hdl.RestartCount,
-                    showConsole = _config.Watchdog.ShowHeadlessConsole
+                    showConsole = _config.Watchdog.ShowHeadlessConsole,
+                    profileId = hdl.ProfileId,
+                    profileName = hdl.ProfileName
                 },
                 connection = new
                 {

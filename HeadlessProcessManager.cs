@@ -48,6 +48,11 @@ public class HeadlessProcessManager
     private bool _stopping;
     private CancellationTokenSource? _autoStartCts;
     private CancellationTokenSource? _rarCts;
+    private CancellationTokenSource? _readinessCts;
+    private bool _startupFailed;
+    private const string TelemetryMarker = "[ZSlayerHQ] Headless telemetry active";
+    private const string FikaHeadlessMarker = "Connected to HeadlessWebSocket";
+    private const int ReadinessTimeoutSeconds = 180;
     private readonly List<string> _consoleBuffer = new();
     private const int MaxConsoleLines = 50;
     private bool _consoleVisible = true;
@@ -61,6 +66,9 @@ public class HeadlessProcessManager
 
     /// <summary>True once the headless telemetry plugin has reported active (fully loaded).</summary>
     public bool HeadlessReady { get; private set; }
+
+    /// <summary>True if the headless process exited before becoming ready (startup failure).</summary>
+    public bool StartupFailed => _startupFailed;
 
     public HeadlessProcessManager(HeadlessSection config, string sptRoot, Action<string> log)
     {
@@ -153,6 +161,8 @@ public class HeadlessProcessManager
                         catch { _startedAt = DateTime.UtcNow; }
 
                         _log($"Attached to existing headless process (PID {p.Id})");
+                        _startupFailed = false;
+                        StartReadinessProbe();
                         return;
                     }
                 }
@@ -209,6 +219,7 @@ public class HeadlessProcessManager
 
         _stopping = false;
         HeadlessReady = false;
+        _startupFailed = false;
 
         var backendUrl = _serverManager?.ServerUrl ?? "https://127.0.0.1:6969";
         var args = $"-token={_config.ProfileId} " +
@@ -223,7 +234,7 @@ public class HeadlessProcessManager
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = false
+                CreateNoWindow = !_consoleVisible
             };
 
             _process = Process.Start(psi);
@@ -238,6 +249,7 @@ public class HeadlessProcessManager
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
                 lock (_consoleBuffer) _consoleBuffer.Clear();
+                StartReadinessProbe();
 
                 _log($"Headless started (PID {_process.Id})");
 
@@ -266,6 +278,7 @@ public class HeadlessProcessManager
         _stopping = true;
         _autoStartCts?.Cancel();
         _rarCts?.Cancel();
+        CancelReadinessProbe();
 
         if (_process != null && !_process.HasExited)
         {
@@ -285,6 +298,7 @@ public class HeadlessProcessManager
         _startedAt = null;
         _windowHandles.Clear();
         HeadlessReady = false;
+        _startupFailed = false;
         return GetStatus();
     }
 
@@ -440,6 +454,71 @@ public class HeadlessProcessManager
         return $"{ts.Seconds}s";
     }
 
+    /// <summary>
+    /// Polls the BepInEx log file for the telemetry marker to detect readiness.
+    /// Handles attached processes (where stdout is unavailable) and acts as a
+    /// fallback if stdout detection misses the marker.
+    /// </summary>
+    private void StartReadinessProbe()
+    {
+        CancelReadinessProbe();
+        _readinessCts = new CancellationTokenSource();
+        var token = _readinessCts.Token;
+        var logPath = Path.Combine(_workingDir, "BepInEx", "LogOutput.log");
+
+        Task.Run(async () =>
+        {
+            var elapsed = 0;
+            try
+            {
+                while (!token.IsCancellationRequested && elapsed < ReadinessTimeoutSeconds)
+                {
+                    // If stdout already detected readiness, we're done
+                    if (HeadlessReady) return;
+
+                    if (File.Exists(logPath))
+                    {
+                        try
+                        {
+                            using var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                            using var reader = new StreamReader(fs);
+                            var content = await reader.ReadToEndAsync(token);
+                            if (content.Contains(FikaHeadlessMarker) || content.Contains(TelemetryMarker))
+                            {
+                                if (!HeadlessReady)
+                                {
+                                    HeadlessReady = true;
+                                    _startupFailed = false;
+                                    _log("Headless fully loaded (detected via log file)");
+                                }
+                                return;
+                            }
+                        }
+                        catch (IOException) { /* file locked momentarily — retry */ }
+                    }
+
+                    await Task.Delay(2000, token);
+                    elapsed += 2;
+                }
+
+                // Timeout fallback — assume ready (no telemetry plugin installed)
+                if (!token.IsCancellationRequested && !HeadlessReady)
+                {
+                    HeadlessReady = true;
+                    _startupFailed = false;
+                    _log("Headless readiness timeout — assuming ready (no telemetry plugin?)");
+                }
+            }
+            catch (TaskCanceledException) { /* probe cancelled — normal */ }
+        }, token);
+    }
+
+    private void CancelReadinessProbe()
+    {
+        _readinessCts?.Cancel();
+        _readinessCts = null;
+    }
+
     private void OnOutputData(object sender, DataReceivedEventArgs e)
     {
         if (e.Data == null) return;
@@ -450,11 +529,12 @@ public class HeadlessProcessManager
                 _consoleBuffer.RemoveAt(0);
         }
 
-        // Detect headless fully loaded — telemetry plugin reports active
-        if (!HeadlessReady && e.Data.Contains("[ZSlayerHQ] Headless telemetry active"))
+        // Detect headless fully loaded via known markers
+        if (!HeadlessReady && (e.Data.Contains(FikaHeadlessMarker) || e.Data.Contains(TelemetryMarker)))
         {
             HeadlessReady = true;
-            _log("Headless fully loaded (telemetry active)");
+            _startupFailed = false;
+            _log("Headless fully loaded (detected via stdout)");
         }
     }
 
@@ -470,8 +550,14 @@ public class HeadlessProcessManager
     private void OnProcessExited(object? sender, EventArgs e)
     {
         _rarCts?.Cancel(); // Cancel any pending RAR — process already exited
+        CancelReadinessProbe();
 
         if (_stopping) return;
+
+        // If process exited before becoming ready, it's a startup failure
+        if (!HeadlessReady)
+            _startupFailed = true;
+        HeadlessReady = false;
 
         var exitCode = _process?.ExitCode;
         _lastCrashReason = $"Process exited with code {exitCode}";
