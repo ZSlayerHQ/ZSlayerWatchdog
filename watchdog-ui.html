@@ -87,16 +87,146 @@ body{
 .ws-val--r{color:var(--red-bright);text-shadow:0 0 12px var(--red-glow);}
 .ws-val--d{color:var(--text-dim);}
 .wolf-center{width:260px;height:280px;position:relative;flex-shrink:0;}
-.wolf-breath-row{display:flex;gap:3px;justify-content:center;margin:2px 0 0 0;}
-.wb{width:5px;background:var(--amber-dim);border-radius:2px;animation:wb 3s ease-in-out infinite;}
-.wb:nth-child(1){height:3px;animation-delay:0s;}
-.wb:nth-child(2){height:5px;animation-delay:.12s;}
-.wb:nth-child(3){height:7px;animation-delay:.24s;}
-.wb:nth-child(4){height:5px;animation-delay:.36s;}
-.wb:nth-child(5){height:3px;animation-delay:.48s;}
-@keyframes wb{0%,100%{opacity:.25;transform:scaleY(1);}50%{opacity:.9;transform:scaleY(2.2);}}
-.sentinel-lbl{text-align:center;margin:0 0 6px 0;
-  font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--text-muted);}
+/* ═══ 3D BREATHING BAR ═══ */
+.breath-bar{
+  --bd:3s; --br:200; --bg:170; --bb:110;
+  position:relative; width:210px; height:20px; margin:8px auto 0;
+  border-radius:10px;
+  background:linear-gradient(180deg,#1c1c18 0%,#0c0c08 40%,#141410 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    inset 0 3px 8px rgba(0,0,0,0.95),
+    inset 0 -2px 4px rgba(0,0,0,0.4),
+    inset 3px 0 6px rgba(0,0,0,0.5),
+    inset -3px 0 6px rgba(0,0,0,0.5),
+    0 0 20px rgba(var(--br),var(--bg),var(--bb),0.06),
+    0 2px 6px rgba(0,0,0,0.6);
+  border:1px solid rgba(var(--br),var(--bg),var(--bb),0.1);
+  overflow:hidden;
+}
+/* Glass dome highlight */
+.breath-bar::before{
+  content:''; position:absolute; top:2px; left:18px; right:18px; height:7px;
+  border-radius:7px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.02) 60%,transparent);
+  z-index:4; pointer-events:none;
+}
+/* Specular sweep */
+.breath-bar::after{
+  content:''; position:absolute; top:2px; bottom:2px; width:30px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),rgba(255,255,255,0.1),rgba(255,255,255,0.06),transparent);
+  border-radius:7px;
+  animation:bbSweep var(--bd) ease-in-out infinite;
+  z-index:5; pointer-events:none;
+}
+.breath-tube{
+  position:absolute; inset:3px 5px; border-radius:7px; overflow:hidden;
+  background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(var(--br),var(--bg),var(--bb),0.02) 50%,rgba(0,0,0,0.2));
+}
+/* Energy fill — bar-grid masked */
+.breath-energy{
+  position:absolute; inset:0; transform-origin:center bottom;
+  animation:bbPulse var(--bd) ease-in-out infinite;
+  background:radial-gradient(ellipse 70% 130% at 50% 85%,
+    rgba(var(--br),var(--bg),var(--bb),0.65),
+    rgba(var(--br),var(--bg),var(--bb),0.2) 55%,transparent);
+  -webkit-mask-image:repeating-linear-gradient(90deg,#000 0px,#000 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 5px);
+  mask-image:repeating-linear-gradient(90deg,#000 0px,#000 3px,rgba(0,0,0,0.06) 3px,rgba(0,0,0,0.06) 5px);
+}
+/* Unmasked bloom — bleeds between bars */
+.breath-energy::before{
+  content:''; position:absolute; inset:-2px;
+  background:radial-gradient(ellipse 50% 110% at 50% 100%,
+    rgba(var(--br),var(--bg),var(--bb),0.35),transparent 65%);
+  filter:blur(4px);
+  animation:bbBloom var(--bd) ease-in-out infinite;
+}
+/* Horizontal energy flow */
+.breath-energy::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg,transparent,
+    rgba(var(--br),var(--bg),var(--bb),0.12) 25%,
+    rgba(var(--br),var(--bg),var(--bb),0.28) 50%,
+    rgba(var(--br),var(--bg),var(--bb),0.12) 75%,transparent);
+  background-size:200% 100%;
+  animation:bbFlow calc(var(--bd) * 0.6) linear infinite;
+}
+/* End-cap indicator LEDs */
+.breath-cap{
+  position:absolute; top:50%; width:4px; height:4px; border-radius:50%;
+  transform:translateY(-50%);
+  background:rgba(var(--br),var(--bg),var(--bb),0.5);
+  box-shadow:0 0 6px rgba(var(--br),var(--bg),var(--bb),0.4);
+  animation:bbHalo var(--bd) ease-in-out infinite;
+  z-index:3;
+}
+.breath-cap--l{left:3px;} .breath-cap--r{right:3px;}
+/* Outer glow halo */
+.breath-halo{
+  position:absolute; inset:-4px; border-radius:14px; pointer-events:none;
+  box-shadow:0 0 18px rgba(var(--br),var(--bg),var(--bb),0.12),
+             0 0 36px rgba(var(--br),var(--bg),var(--bb),0.04);
+  animation:bbHalo var(--bd) ease-in-out infinite;
+}
+@keyframes bbPulse{
+  0%,100%{transform:scaleY(0.3);opacity:0.2;}
+  50%{transform:scaleY(1);opacity:1;}
+}
+@keyframes bbBloom{0%,100%{opacity:0.1;}50%{opacity:0.85;}}
+@keyframes bbFlow{0%{background-position:-100% 0;}100%{background-position:100% 0;}}
+@keyframes bbSweep{
+  0%{left:-30px;opacity:0;}
+  12%{opacity:0.7;}
+  48%{left:calc(100% + 30px);opacity:0;}
+  100%{left:calc(100% + 30px);opacity:0;}
+}
+@keyframes bbHalo{0%,100%{opacity:0.15;}50%{opacity:1;}}
+/* ═══ 3D SENTINEL LABEL ═══ */
+.sentinel-lbl{
+  --sd:3s;--sr:100;--sg:90;--sb:70;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  margin:5px 0 6px 0;padding:0 8px;position:relative;
+}
+.sl-wing{
+  flex:0 0 28px;height:1px;
+  animation:slWing var(--sd) ease-in-out infinite;
+}
+.sl-wing--l{background:linear-gradient(90deg,transparent,rgba(var(--sr),var(--sg),var(--sb),0.5));}
+.sl-wing--r{background:linear-gradient(270deg,transparent,rgba(var(--sr),var(--sg),var(--sb),0.5));}
+.sl-txt{
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:4px;
+  color:rgb(var(--sr),var(--sg),var(--sb));
+  white-space:nowrap;
+  animation:slBreath var(--sd) ease-in-out infinite;
+}
+/* State modifiers */
+.sl--nominal{--sr:150;--sg:195;--sb:80;--sd:3s;}
+.sl--loading{--sr:200;--sg:170;--sb:110;--sd:1.8s;}
+.sl--partial{--sr:200;--sg:150;--sb:60;--sd:2.5s;}
+.sl--alert{--sr:255;--sg:64;--sb:32;--sd:0.7s;}
+.sl--error{--sr:220;--sg:50;--sb:40;--sd:2s;}
+.sl--offline{--sr:100;--sg:90;--sb:70;--sd:5s;}
+@keyframes slBreath{
+  0%,100%{
+    text-shadow:
+      0 1px 0 rgba(0,0,0,0.9),
+      0 2px 1px rgba(0,0,0,0.6),
+      0 0 3px rgba(var(--sr),var(--sg),var(--sb),0.06);
+    opacity:0.3;
+  }
+  50%{
+    text-shadow:
+      0 1px 0 rgba(0,0,0,0.9),
+      0 2px 1px rgba(0,0,0,0.6),
+      0 3px 2px rgba(0,0,0,0.3),
+      0 0 10px rgba(var(--sr),var(--sg),var(--sb),0.7),
+      0 0 25px rgba(var(--sr),var(--sg),var(--sb),0.4),
+      0 0 50px rgba(var(--sr),var(--sg),var(--sb),0.12);
+    opacity:1;
+  }
+}
+@keyframes slWing{0%,100%{opacity:0.12;}50%{opacity:0.7;}}
 
 /* ═══ PANELS ROW ═══ */
 .panels{display:flex;gap:12px;flex-shrink:0;}
@@ -343,8 +473,17 @@ body{
       </div>
     </div>
 
-    <div class="wolf-breath-row"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
-    <div class="sentinel-lbl">◇ SENTINEL ACTIVE ◇</div>
+    <div class="breath-bar" id="breathBar">
+      <div class="breath-halo"></div>
+      <div class="breath-cap breath-cap--l"></div>
+      <div class="breath-cap breath-cap--r"></div>
+      <div class="breath-tube"><div class="breath-energy" id="breathEnergy"></div></div>
+    </div>
+    <div class="sentinel-lbl sl--offline" id="sentinelLbl">
+      <span class="sl-wing sl-wing--l"></span>
+      <span class="sl-txt" id="sentinelText">◇ STANDING BY ◇</span>
+      <span class="sl-wing sl-wing--r"></span>
+    </div>
 
     <!-- Server Panels -->
     <div class="panels">
@@ -1539,6 +1678,18 @@ function drawWolf(time) {
   else if (state.wolfState === 'alert') { breathSpeed = 1.3; eyeColor = '#ff4020'; earPinBack = -0.40; jawDrop = 7; eyelidClose = 0; }
   else if (state.wolfState === 'dormant') { breathSpeed = 5; eyeColor = '#8a6a20'; earPinBack = 0.08; jawDrop = 0; eyelidClose = 0; }
   else { breathSpeed = 7; eyeColor = '#604a18'; earPinBack = 0.12; jawDrop = 0; eyelidClose = 1; }
+
+  // Sync 3D breath bar with wolf state
+  const bb = document.getElementById('breathBar');
+  if (bb) {
+    const bs = bb.style;
+    bs.setProperty('--bd', breathSpeed + 's');
+    if (state.wolfState === 'alert') { bs.setProperty('--br','255'); bs.setProperty('--bg','64'); bs.setProperty('--bb','32'); }
+    else if (state.wolfState === 'vigilant') { bs.setProperty('--br','224'); bs.setProperty('--bg','160'); bs.setProperty('--bb','48'); }
+    else if (state.wolfState === 'dormant') { bs.setProperty('--br','138'); bs.setProperty('--bg','106'); bs.setProperty('--bb','32'); }
+    else if (state.wolfState === 'sleeping') { bs.setProperty('--br','96'); bs.setProperty('--bg','74'); bs.setProperty('--bb','24'); }
+    else { bs.setProperty('--br','200'); bs.setProperty('--bg','170'); bs.setProperty('--bb','110'); }
+  }
 
   // Spring-damper expressions (ears snap fast, jaw medium, eyelids gentle)
   velEarPin = (velEarPin + (earPinBack - curEarPin) * springEar.k * df) * Math.pow(springEar.d, df);
@@ -2829,10 +2980,11 @@ window.updateState = function(s) {
   state.hlRunning = s.headless.running;
   const hlPanel = document.getElementById('panelHL');
   const hlBadge = document.getElementById('badgeHL');
-  if (!s.headless.running && s.headless.startupFailed) {
+  if (s.headless.startupFailed && !s.headless.ready) {
+    // Error state — process may or may not still be running
     hlPanel.className = 'panel failed';
     hlBadge.className = 'badge badge--r';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Failed';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Error';
   } else if (!s.headless.running && s.headless.waitingForServer) {
     hlPanel.className = 'panel starting';
     hlBadge.className = 'badge badge--a';
@@ -2938,6 +3090,35 @@ window.updateState = function(s) {
     const alertEl = document.getElementById('wsAlerts');
     alertEl.textContent = parseInt(alertEl.textContent || '0') + 1;
     alertEl.className = 'ws-val ws-val--r';
+  }
+
+  // ── Sentinel label — state-reactive 3D text ──
+  const slEl = document.getElementById('sentinelLbl');
+  const slTxt = document.getElementById('sentinelText');
+  if (state.alertActive) {
+    slEl.className = 'sentinel-lbl sl--alert';
+    slTxt.textContent = '⚠ THREAT DETECTED ⚠';
+  } else if (s.headless.startupFailed && !s.headless.running) {
+    slEl.className = 'sentinel-lbl sl--error';
+    slTxt.textContent = '✕ STARTUP FAILED ✕';
+  } else if (s.spt.running && s.headless.running && s.headless.ready) {
+    slEl.className = 'sentinel-lbl sl--nominal';
+    slTxt.textContent = '◆ SYSTEMS NOMINAL ◆';
+  } else if (s.spt.running && s.headless.running) {
+    slEl.className = 'sentinel-lbl sl--loading';
+    slTxt.textContent = '◆ HEADLESS LOADING ◆';
+  } else if (s.spt.running && s.spt.ready) {
+    slEl.className = 'sentinel-lbl sl--partial';
+    slTxt.textContent = '◇ SERVER ONLINE ◇';
+  } else if (s.spt.running) {
+    slEl.className = 'sentinel-lbl sl--loading';
+    slTxt.textContent = '◇ SERVER LOADING ◇';
+  } else if (s.headless.running) {
+    slEl.className = 'sentinel-lbl sl--partial';
+    slTxt.textContent = '◇ HEADLESS ONLY ◇';
+  } else {
+    slEl.className = 'sentinel-lbl sl--offline';
+    slTxt.textContent = '◇ STANDING BY ◇';
   }
 
   // Update wolf state + sentinel

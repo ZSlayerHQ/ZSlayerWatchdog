@@ -50,9 +50,15 @@ public class HeadlessProcessManager
     private CancellationTokenSource? _rarCts;
     private CancellationTokenSource? _readinessCts;
     private bool _startupFailed;
-    private const string TelemetryMarker = "[ZSlayerHQ] Headless telemetry active";
+    // Only the Fika websocket marker means the headless is genuinely connected and ready.
+    // The telemetry plugin loads much earlier during BepInEx chainloader — NOT a readiness signal.
     private const string FikaHeadlessMarker = "Connected to HeadlessWebSocket";
     private const int ReadinessTimeoutSeconds = 180;
+    private static readonly string[] StartupErrorMarkers =
+    [
+        "A PATCH IN SPTCustomPlugin FAILED",
+        "SUBSEQUENT PATCHES HAVE NOT LOADED"
+    ];
     private readonly List<string> _consoleBuffer = new();
     private const int MaxConsoleLines = 50;
     private bool _consoleVisible = true;
@@ -455,9 +461,8 @@ public class HeadlessProcessManager
     }
 
     /// <summary>
-    /// Polls the BepInEx log file for the telemetry marker to detect readiness.
-    /// Handles attached processes (where stdout is unavailable) and acts as a
-    /// fallback if stdout detection misses the marker.
+    /// Polls the BepInEx log file for readiness/error markers.
+    /// Skips stale content from previous sessions by tracking the file offset at probe start.
     /// </summary>
     private void StartReadinessProbe()
     {
@@ -469,6 +474,17 @@ public class HeadlessProcessManager
         Task.Run(async () =>
         {
             var elapsed = 0;
+
+            // Snapshot the current log file size so we only scan NEW content.
+            // This prevents stale markers from a previous session triggering false readiness.
+            long startOffset = 0;
+            try
+            {
+                if (File.Exists(logPath))
+                    startOffset = new FileInfo(logPath).Length;
+            }
+            catch { /* file may not exist yet */ }
+
             try
             {
                 while (!token.IsCancellationRequested && elapsed < ReadinessTimeoutSeconds)
@@ -481,17 +497,40 @@ public class HeadlessProcessManager
                         try
                         {
                             using var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+                            // If file shrank, BepInEx recreated it — reset offset to read from start
+                            if (fs.Length < startOffset)
+                                startOffset = 0;
+
+                            fs.Seek(startOffset, SeekOrigin.Begin);
                             using var reader = new StreamReader(fs);
                             var content = await reader.ReadToEndAsync(token);
-                            if (content.Contains(FikaHeadlessMarker) || content.Contains(TelemetryMarker))
+
+                            if (content.Length > 0)
                             {
-                                if (!HeadlessReady)
+                                // Check for readiness markers
+                                if (content.Contains(FikaHeadlessMarker))
                                 {
-                                    HeadlessReady = true;
-                                    _startupFailed = false;
-                                    _log("Headless fully loaded (detected via log file)");
+                                    if (!HeadlessReady)
+                                    {
+                                        HeadlessReady = true;
+                                        _startupFailed = false;
+                                        _log("Headless fully loaded (detected via log file)");
+                                    }
+                                    return;
                                 }
-                                return;
+
+                                // Check for critical startup errors
+                                foreach (var marker in StartupErrorMarkers)
+                                {
+                                    if (content.Contains(marker))
+                                    {
+                                        _startupFailed = true;
+                                        _lastCrashReason = $"Startup error: {marker}";
+                                        _log($"Headless startup failure detected: {marker}");
+                                        return;
+                                    }
+                                }
                             }
                         }
                         catch (IOException) { /* file locked momentarily — retry */ }
@@ -501,12 +540,12 @@ public class HeadlessProcessManager
                     elapsed += 2;
                 }
 
-                // Timeout fallback — assume ready (no telemetry plugin installed)
+                // Timeout — headless never loaded, mark as failed
                 if (!token.IsCancellationRequested && !HeadlessReady)
                 {
-                    HeadlessReady = true;
-                    _startupFailed = false;
-                    _log("Headless readiness timeout — assuming ready (no telemetry plugin?)");
+                    _startupFailed = true;
+                    _lastCrashReason = "Readiness timeout — headless never fully loaded";
+                    _log("Headless readiness timeout — marking as failed");
                 }
             }
             catch (TaskCanceledException) { /* probe cancelled — normal */ }
@@ -530,11 +569,28 @@ public class HeadlessProcessManager
         }
 
         // Detect headless fully loaded via known markers
-        if (!HeadlessReady && (e.Data.Contains(FikaHeadlessMarker) || e.Data.Contains(TelemetryMarker)))
+        if (!HeadlessReady && (e.Data.Contains(FikaHeadlessMarker)))
         {
             HeadlessReady = true;
             _startupFailed = false;
+            CancelReadinessProbe();
             _log("Headless fully loaded (detected via stdout)");
+        }
+
+        // Detect critical startup errors via stdout
+        if (!HeadlessReady && !_startupFailed)
+        {
+            foreach (var marker in StartupErrorMarkers)
+            {
+                if (e.Data.Contains(marker))
+                {
+                    _startupFailed = true;
+                    _lastCrashReason = $"Startup error: {marker}";
+                    CancelReadinessProbe();
+                    _log($"Headless startup failure detected: {marker}");
+                    break;
+                }
+            }
         }
     }
 
