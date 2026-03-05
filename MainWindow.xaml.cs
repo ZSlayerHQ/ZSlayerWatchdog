@@ -518,7 +518,9 @@ public partial class MainWindow : Window
         _quitting = true;
 
         _pollTimer.Stop();
+        // Flush any pending debounced save before shutting down
         _saveTimer?.Stop();
+        SaveConfig();
         _connection.Stop();
 
         if (_headless.IsRunning) _headless.Stop();
