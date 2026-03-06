@@ -8,7 +8,7 @@ namespace ZSlayerCommandCenter.Launcher;
 public class ServerProcessManager
 {
     private readonly WatchdogSection _config;
-    private readonly string _sptRoot;
+    private readonly string? _sptRoot;
     private readonly Action<string> _log;
     private Process? _process;
     private DateTime? _startedAt;
@@ -37,7 +37,7 @@ public class ServerProcessManager
     /// <summary>The server's backend URL read from http.json (e.g. "https://127.0.0.1:6969").</summary>
     public string ServerUrl { get; private set; } = "https://127.0.0.1:6969";
 
-    public ServerProcessManager(WatchdogSection config, string sptRoot, Action<string> log)
+    public ServerProcessManager(WatchdogSection config, string? sptRoot, Action<string> log)
     {
         _config = config;
         _sptRoot = sptRoot;
@@ -46,6 +46,13 @@ public class ServerProcessManager
 
     public void Configure()
     {
+        if (string.IsNullOrEmpty(_sptRoot))
+        {
+            _available = false;
+            _log("No SPT root — server management unavailable");
+            return;
+        }
+
         if (_config.SptServerExe != "auto" && File.Exists(_config.SptServerExe))
         {
             _exePath = Path.GetFullPath(_config.SptServerExe);
@@ -162,7 +169,7 @@ public class ServerProcessManager
         catch { /* GetProcessesByName can throw on restricted environments */ }
     }
 
-    public string SptRoot => _sptRoot;
+    public string? SptRoot => _sptRoot;
 
     public void Start()
     {

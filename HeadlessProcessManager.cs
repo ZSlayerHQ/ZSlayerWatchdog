@@ -35,8 +35,13 @@ public class HeadlessProcessManager
     private const int WS_EX_APPWINDOW = 0x40000;
 
     private readonly HeadlessSection _config;
-    private readonly string _sptRoot;
+    private readonly string? _sptRoot;
     private readonly Action<string> _log;
+    private readonly string? _explicitExePath;
+    private readonly string? _explicitProfileId;
+    private readonly string? _explicitBackendUrl;
+    private string? _serverUrl;
+    private string? _cachedProfileName;
     private ServerProcessManager? _serverManager;
     private Process? _process;
     private DateTime? _startedAt;
@@ -76,26 +81,51 @@ public class HeadlessProcessManager
     /// <summary>True if the headless process exited before becoming ready (startup failure).</summary>
     public bool StartupFailed => _startupFailed;
 
-    public HeadlessProcessManager(HeadlessSection config, string sptRoot, Action<string> log)
+    public HeadlessProcessManager(HeadlessSection config, string? sptRoot, Action<string> log,
+        string? explicitExePath = null, string? explicitProfileId = null,
+        string? explicitBackendUrl = null, string? serverUrl = null)
     {
         _config = config;
         _sptRoot = sptRoot;
         _log = log;
+        _explicitExePath = explicitExePath;
+        _explicitProfileId = explicitProfileId;
+        _explicitBackendUrl = explicitBackendUrl;
+        _serverUrl = serverUrl;
     }
 
     /// <summary>Wire up the server manager reference so we can read ServerUrl at launch time.</summary>
     public void SetServerManager(ServerProcessManager server) => _serverManager = server;
 
+    public bool IsAvailable => _available;
+
+    public void SetServerUrl(string url) => _serverUrl = url;
+
+    public void NotifyRemoteReady(string sourceId)
+    {
+        if (!string.IsNullOrEmpty(_config.ProfileId) &&
+            sourceId == _config.ProfileId &&
+            IsRunning && !HeadlessReady)
+        {
+            HeadlessReady = true;
+            _startupFailed = false;
+            _log("Headless fully loaded (detected via remote telemetry hello)");
+        }
+    }
+
     public void Configure()
     {
-        // Resolve EXE path
-        if (!string.IsNullOrEmpty(_config.ExePath) && File.Exists(_config.ExePath))
+        // 3-tier EXE resolution: explicit > config.ExePath > SPT root discovery
+        if (!string.IsNullOrEmpty(_explicitExePath) && File.Exists(_explicitExePath))
+        {
+            _exePath = _explicitExePath;
+        }
+        else if (!string.IsNullOrEmpty(_config.ExePath) && File.Exists(_config.ExePath))
         {
             _exePath = _config.ExePath;
         }
-        else
+        else if (!string.IsNullOrEmpty(_sptRoot))
         {
-            // SPT root is e.g. {game_root}/SPT — EFT exe is in {game_root}
             var gameRoot = Path.GetFullPath(Path.Combine(_sptRoot, ".."));
             var candidate = Path.Combine(gameRoot, "EscapeFromTarkov.exe");
             if (File.Exists(candidate))
@@ -110,8 +140,13 @@ public class HeadlessProcessManager
         else
             _log("EscapeFromTarkov.exe not found — headless management unavailable");
 
-        // Auto-read profileId from HeadlessConfig.json if not set
-        if (_available && string.IsNullOrEmpty(_config.ProfileId))
+        // ProfileId resolution: explicit > HeadlessConfig.json > config.ProfileId
+        if (!string.IsNullOrEmpty(_explicitProfileId))
+        {
+            _config.ProfileId = _explicitProfileId;
+            _log("Using explicit headless profileId from watchdog-config.json");
+        }
+        else if (_available && string.IsNullOrEmpty(_config.ProfileId))
         {
             var headlessConfigPath = Path.Combine(_workingDir, "HeadlessConfig.json");
             if (File.Exists(headlessConfigPath))
@@ -227,7 +262,10 @@ public class HeadlessProcessManager
         HeadlessReady = false;
         _startupFailed = false;
 
-        var backendUrl = _serverManager?.ServerUrl ?? "https://127.0.0.1:6969";
+        var backendUrl = _explicitBackendUrl
+            ?? (_serverManager != null && !string.IsNullOrEmpty(_serverManager.ServerUrl) ? _serverManager.ServerUrl : null)
+            ?? _serverUrl
+            ?? "https://127.0.0.1:6969";
         var args = $"-token={_config.ProfileId} " +
                    $"-config={{'BackendUrl':'{backendUrl}','Version':'live'}} " +
                    "-nographics -batchmode --enable-console true";
@@ -423,7 +461,7 @@ public class HeadlessProcessManager
             AutoStartDelaySec = _config.AutoStartDelaySec,
             AutoRestart = _config.AutoRestart,
             ProfileId = _config.ProfileId,
-            ProfileName = ResolveProfileName(_config.ProfileId),
+            ProfileName = _cachedProfileName ?? ResolveProfileName(_config.ProfileId),
             ExePath = _exePath
         };
     }
@@ -431,6 +469,7 @@ public class HeadlessProcessManager
     private string ResolveProfileName(string profileId)
     {
         if (string.IsNullOrEmpty(profileId)) return "";
+        if (string.IsNullOrEmpty(_sptRoot)) return "";
         try
         {
             var profilePath = Path.Combine(_sptRoot, "user", "profiles", $"{profileId}.json");
@@ -450,6 +489,51 @@ public class HeadlessProcessManager
         return "";
     }
 
+    public async Task ResolveProfileNameAsync(string profileId, string serverUrl)
+    {
+        if (string.IsNullOrEmpty(profileId) || string.IsNullOrEmpty(serverUrl)) return;
+
+        // Try local file first
+        var localName = ResolveProfileName(profileId);
+        if (!string.IsNullOrEmpty(localName))
+        {
+            _cachedProfileName = localName;
+            return;
+        }
+
+        // HTTP fallback to remote server
+        try
+        {
+            using var http = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            })
+            { Timeout = TimeSpan.FromSeconds(5) };
+
+            var resp = await http.GetStringAsync($"{serverUrl.TrimEnd('/')}/zslayer/cc/profiles");
+            using var doc = JsonDocument.Parse(resp);
+            if (doc.RootElement.TryGetProperty("profiles", out var profiles) &&
+                profiles.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var p in profiles.EnumerateArray())
+                {
+                    var sid = p.TryGetProperty("sessionId", out var s) ? s.GetString() : null;
+                    if (sid == profileId)
+                    {
+                        var name = p.TryGetProperty("name", out var n) ? n.GetString() : null;
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            _cachedProfileName = name;
+                            _log($"Resolved headless profile name via HTTP: {name}");
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+        catch { /* remote server not reachable yet — will retry later */ }
+    }
+
     private static string FormatUptime(long seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);
@@ -464,6 +548,12 @@ public class HeadlessProcessManager
     /// Polls the BepInEx log file for readiness/error markers.
     /// Skips stale content from previous sessions by tracking the file offset at probe start.
     /// </summary>
+    private static readonly System.Net.Http.HttpClient _telemetryHttpClient = new(new System.Net.Http.HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+    })
+    { Timeout = TimeSpan.FromSeconds(5) };
+
     private void StartReadinessProbe()
     {
         CancelReadinessProbe();
@@ -474,14 +564,17 @@ public class HeadlessProcessManager
         Task.Run(async () =>
         {
             var elapsed = 0;
+            var logFileFound = false;
 
             // Snapshot the current log file size so we only scan NEW content.
-            // This prevents stale markers from a previous session triggering false readiness.
             long startOffset = 0;
             try
             {
                 if (File.Exists(logPath))
+                {
                     startOffset = new FileInfo(logPath).Length;
+                    logFileFound = true;
+                }
             }
             catch { /* file may not exist yet */ }
 
@@ -489,16 +582,25 @@ public class HeadlessProcessManager
             {
                 while (!token.IsCancellationRequested && elapsed < ReadinessTimeoutSeconds)
                 {
-                    // If stdout already detected readiness, we're done
                     if (HeadlessReady) return;
+
+                    // After 10s with no log file, switch to telemetry polling
+                    if (!logFileFound && elapsed >= 10 && !string.IsNullOrEmpty(_serverUrl))
+                    {
+                        if (await PollTelemetryForReadiness(token))
+                            return;
+                        await Task.Delay(2000, token);
+                        elapsed += 2;
+                        continue;
+                    }
 
                     if (File.Exists(logPath))
                     {
+                        logFileFound = true;
                         try
                         {
                             using var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-                            // If file shrank, BepInEx recreated it — reset offset to read from start
                             if (fs.Length < startOffset)
                                 startOffset = 0;
 
@@ -508,7 +610,6 @@ public class HeadlessProcessManager
 
                             if (content.Length > 0)
                             {
-                                // Check for readiness markers
                                 if (content.Contains(FikaHeadlessMarker))
                                 {
                                     if (!HeadlessReady)
@@ -520,7 +621,6 @@ public class HeadlessProcessManager
                                     return;
                                 }
 
-                                // Check for critical startup errors
                                 foreach (var marker in StartupErrorMarkers)
                                 {
                                     if (content.Contains(marker))
@@ -540,7 +640,6 @@ public class HeadlessProcessManager
                     elapsed += 2;
                 }
 
-                // Timeout — headless never loaded, mark as failed
                 if (!token.IsCancellationRequested && !HeadlessReady)
                 {
                     _startupFailed = true;
@@ -550,6 +649,38 @@ public class HeadlessProcessManager
             }
             catch (TaskCanceledException) { /* probe cancelled — normal */ }
         }, token);
+    }
+
+    private async Task<bool> PollTelemetryForReadiness(CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(_serverUrl) || string.IsNullOrEmpty(_config.ProfileId))
+            return false;
+
+        try
+        {
+            var url = $"{_serverUrl.TrimEnd('/')}/zslayer/cc/telemetry/current";
+            var resp = await _telemetryHttpClient.GetStringAsync(url, ct);
+            using var doc = JsonDocument.Parse(resp);
+
+            if (doc.RootElement.TryGetProperty("sources", out var sources) &&
+                sources.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var src in sources.EnumerateArray())
+                {
+                    var srcId = src.TryGetProperty("sourceId", out var s) ? s.GetString() : null;
+                    var status = src.TryGetProperty("status", out var st) ? st.GetString() : null;
+                    if (srcId == _config.ProfileId && status != "idle")
+                    {
+                        HeadlessReady = true;
+                        _startupFailed = false;
+                        _log("Headless fully loaded (detected via telemetry endpoint)");
+                        return true;
+                    }
+                }
+            }
+        }
+        catch { /* server not reachable or telemetry not available yet */ }
+        return false;
     }
 
     private void CancelReadinessProbe()

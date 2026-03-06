@@ -15,8 +15,17 @@ public class WatchdogIdentityConfig
     public string Name { get; set; } = "Watchdog";
 
     [JsonPropertyName("serverUrl")]
-    public string ServerUrl { get; set; } = "https://127.0.0.1:6969";
+    public string ServerUrl { get; set; } = "";
 
     [JsonPropertyName("token")]
     public string Token { get; set; } = "";
+
+    [JsonPropertyName("headlessExePath")]
+    public string HeadlessExePath { get; set; } = "";
+
+    [JsonPropertyName("headlessProfileId")]
+    public string HeadlessProfileId { get; set; } = "";
+
+    [JsonPropertyName("headlessBackendUrl")]
+    public string HeadlessBackendUrl { get; set; } = "";
 }

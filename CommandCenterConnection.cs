@@ -22,6 +22,8 @@ public class CommandCenterConnection : IDisposable
     private readonly ServerProcessManager _server;
     private readonly HeadlessProcessManager _headless;
     private readonly Action<string> _log;
+    private readonly bool _canManageServer;
+    private readonly bool _canManageHeadless;
 
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
@@ -42,6 +44,8 @@ public class CommandCenterConnection : IDisposable
     public bool AuthRejected => _authRejected;
     public event Action<State>? StateChanged;
 
+    public string ServerUrl { get; }
+
     public CommandCenterConnection(
         string serverUrl,
         string watchdogId,
@@ -50,8 +54,11 @@ public class CommandCenterConnection : IDisposable
         WatchdogAppConfig config,
         ServerProcessManager server,
         HeadlessProcessManager headless,
-        Action<string> log)
+        Action<string> log,
+        bool canManageServer = true,
+        bool canManageHeadless = true)
     {
+        ServerUrl = serverUrl;
         // Convert https:// → wss://, http:// → ws://
         var baseUri = serverUrl.TrimEnd('/');
         string wsBase;
@@ -75,6 +82,8 @@ public class CommandCenterConnection : IDisposable
         _server = server;
         _headless = headless;
         _log = log;
+        _canManageServer = canManageServer;
+        _canManageHeadless = canManageHeadless;
     }
 
     public void Start()
@@ -271,6 +280,13 @@ public class CommandCenterConnection : IDisposable
                 return;
             }
 
+            if (type == "headless-hello")
+            {
+                var sourceId = root.TryGetProperty("sourceId", out var s) ? s.GetString() ?? "" : "";
+                _headless.NotifyRemoteReady(sourceId);
+                return;
+            }
+
             if (type != "command") return;
 
             var target = root.TryGetProperty("target", out var tgt) ? tgt.GetString() ?? "" : "";
@@ -295,6 +311,17 @@ public class CommandCenterConnection : IDisposable
 
     private void ExecuteCommand(string target, string action)
     {
+        if (target == "sptServer" && !_canManageServer)
+        {
+            _ = SendCommandResultAsync(target, action, false, "This watchdog cannot manage the SPT server (no SPT root)");
+            return;
+        }
+        if (target == "headlessClient" && !_canManageHeadless)
+        {
+            _ = SendCommandResultAsync(target, action, false, "This watchdog cannot manage the headless client (EFT exe not found)");
+            return;
+        }
+
         bool success;
         string message;
 
@@ -353,8 +380,8 @@ public class CommandCenterConnection : IDisposable
             ip,
             manages = new
             {
-                sptServer = true,
-                headlessClient = true
+                sptServer = _canManageServer,
+                headlessClient = _canManageHeadless
             }
         };
 

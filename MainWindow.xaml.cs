@@ -17,10 +17,12 @@ public partial class MainWindow : Window
     private readonly string _configPath;
     private readonly WatchdogIdentityConfig _watchdogConfig;
     private readonly string _watchdogConfigPath;
-    private readonly string _sptRoot;
+    private readonly string? _sptRoot;
     private readonly ServerProcessManager _server;
     private readonly HeadlessProcessManager _headless;
     private readonly CommandCenterConnection _connection;
+    private readonly bool _canManageServer;
+    private readonly bool _canManageHeadless;
     private readonly DispatcherTimer _pollTimer;
     private DispatcherTimer? _saveTimer;
     private int _attachScanCounter;
@@ -38,9 +40,10 @@ public partial class MainWindow : Window
 
     public MainWindow(WatchdogAppConfig config, string configPath,
                       WatchdogIdentityConfig watchdogConfig, string watchdogConfigPath,
-                      string sptRoot,
+                      string? sptRoot,
                       ServerProcessManager server, HeadlessProcessManager headless,
-                      CommandCenterConnection connection)
+                      CommandCenterConnection connection,
+                      bool canManageServer = true, bool canManageHeadless = true)
     {
         _config = config;
         _configPath = configPath;
@@ -50,6 +53,8 @@ public partial class MainWindow : Window
         _server = server;
         _headless = headless;
         _connection = connection;
+        _canManageServer = canManageServer;
+        _canManageHeadless = canManageHeadless;
 
         InitializeComponent();
         InitializeWebView();
@@ -158,6 +163,18 @@ public partial class MainWindow : Window
                     ramUsedGB = Math.Round(stats.RamUsedGB, 1),
                     ramTotalGB = Math.Round(stats.RamTotalGB, 1)
                 },
+                mode = new
+                {
+                    canManageServer = _canManageServer,
+                    canManageHeadless = _canManageHeadless,
+                    label = (_canManageServer, _canManageHeadless) switch
+                    {
+                        (true, true) => "Full",
+                        (true, false) => "Server Only",
+                        (false, true) => "Headless Only",
+                        (false, false) => "Monitor"
+                    }
+                },
                 minimizeToTray = _config.Watchdog.MinimizeToTray,
                 crashEvent = _pendingCrashEvent
             };
@@ -189,13 +206,16 @@ public partial class MainWindow : Window
             {
                 // Server controls
                 case "spt_start":
+                    if (!_canManageServer) break;
                     _server.Start();
                     break;
                 case "spt_stop":
+                    if (!_canManageServer) break;
                     if (_headless.IsRunning) _headless.Stop();
                     _server.Stop();
                     break;
                 case "spt_restart":
+                    if (!_canManageServer) break;
                     if (_headless.IsRunning) _headless.Stop();
                     _server.Restart();
                     break;
@@ -312,7 +332,8 @@ public partial class MainWindow : Window
 
                 // Command center
                 case "open_command_center":
-                    Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
+                    var ccUrl = _canManageServer ? _server.ServerUrl : _connection.ServerUrl;
+                    Process.Start(new ProcessStartInfo($"{ccUrl}/zslayer/cc/")
                         { UseShellExecute = true });
                     break;
             }
@@ -404,15 +425,24 @@ public partial class MainWindow : Window
 
         _trayMenu.Items.Add("Show Window", null, (_, _) => Dispatcher.Invoke(ShowFromTray));
         _trayMenu.Items.Add("Open Command Center", null, (_, _) =>
-            Process.Start(new ProcessStartInfo($"{_server.ServerUrl}/zslayer/cc/")
-                { UseShellExecute = true }));
-        _trayMenu.Items.Add("-");
-        _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() =>
         {
-            if (_headless.IsRunning) _headless.Stop();
-            _server.Restart();
-        }));
-        _trayMenu.Items.Add("Restart Headless", null, (_, _) => Dispatcher.Invoke(() => _headless.Restart()));
+            var url = _canManageServer ? _server.ServerUrl : _connection.ServerUrl;
+            Process.Start(new ProcessStartInfo($"{url}/zslayer/cc/")
+                { UseShellExecute = true });
+        });
+        _trayMenu.Items.Add("-");
+        if (_canManageServer)
+        {
+            _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() =>
+            {
+                if (_headless.IsRunning) _headless.Stop();
+                _server.Restart();
+            }));
+        }
+        if (_canManageHeadless)
+        {
+            _trayMenu.Items.Add("Restart Headless", null, (_, _) => Dispatcher.Invoke(() => _headless.Restart()));
+        }
         _trayMenu.Items.Add("-");
         _trayMenu.Items.Add("Quit", null, (_, _) => Dispatcher.Invoke(() => { _quitting = true; Close(); }));
 
@@ -453,6 +483,11 @@ public partial class MainWindow : Window
         }
 
         // Auto-discover from watchdog-token.txt
+        if (_sptRoot == null)
+        {
+            _tokenSource = "none";
+            return "";
+        }
         var tokenPath = Path.Combine(_sptRoot, "user", "mods", "ZSlayerCommandCenter", "watchdog-token.txt");
         if (File.Exists(tokenPath))
         {
@@ -497,6 +532,7 @@ public partial class MainWindow : Window
 
     private void SaveConfig()
     {
+        if (string.IsNullOrEmpty(_configPath)) return;
         try
         {
             var json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
@@ -523,8 +559,8 @@ public partial class MainWindow : Window
         SaveConfig();
         _connection.Stop();
 
-        if (_headless.IsRunning) _headless.Stop();
-        if (_server.IsRunning) _server.Stop();
+        if (_canManageHeadless && _headless.IsRunning) _headless.Stop();
+        if (_canManageServer && _server.IsRunning) _server.Stop();
 
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
@@ -545,7 +581,7 @@ public partial class MainWindow : Window
     // ── Auto-Start ───────────────────────────────────────────
     private void ScheduleAutoStart()
     {
-        if (_config.Watchdog.AutoStartServer)
+        if (_canManageServer && _config.Watchdog.AutoStartServer)
         {
             var delay = Math.Clamp(_config.Watchdog.AutoStartDelaySec, 1, 300);
             Task.Run(async () =>
@@ -556,7 +592,8 @@ public partial class MainWindow : Window
             });
         }
 
-        _headless.StartAutoStartTimer(() => _server.ServerReady);
+        if (_canManageHeadless)
+            _headless.StartAutoStartTimer(() => _server.ServerReady);
     }
 
     // ── Dark Context Menu Renderer (for tray) ────────────────
