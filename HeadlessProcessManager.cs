@@ -297,13 +297,24 @@ public class HeadlessProcessManager
 
                 _log($"Headless started (PID {_process.Id})");
 
-                // Apply console visibility (delay briefly for window to appear)
+                // Apply console visibility — retry until BepInEx console appears
                 if (!_consoleVisible)
                 {
                     Task.Run(async () =>
                     {
-                        await Task.Delay(500);
-                        ApplyConsoleVisibility();
+                        // BepInEx allocates its console after process start; may take several seconds
+                        for (int attempt = 0; attempt < 10; attempt++)
+                        {
+                            await Task.Delay(attempt < 3 ? 500 : 1000);
+                            if (_process == null || _process.HasExited || _consoleVisible) return;
+                            _windowHandles.Clear();
+                            DiscoverWindows();
+                            if (_windowHandles.Count > 0)
+                            {
+                                ApplyConsoleVisibility();
+                                return;
+                            }
+                        }
                     });
                 }
             }
