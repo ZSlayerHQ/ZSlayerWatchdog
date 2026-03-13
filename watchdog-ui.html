@@ -1552,8 +1552,8 @@ function cross(a, b) {
 
 function dot(a, b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
 
-function rotateVertex(v, ax, ay) {
-  // Rotate around Y (horizontal head turn) then X (vertical nod)
+function rotateVertex(v, ax, ay, az = 0) {
+  // Rotate around Y (horizontal head turn) then X (vertical nod) then Z (roll/tilt)
   let [x, y, z] = v;
   // Y rotation
   const cosY = Math.cos(ay), sinY = Math.sin(ay);
@@ -1563,6 +1563,11 @@ function rotateVertex(v, ax, ay) {
   const cosX = Math.cos(ax), sinX = Math.sin(ax);
   const y1 = y * cosX - z1 * sinX;
   const z2 = y * sinX + z1 * cosX;
+  // Z rotation (head tilt/roll)
+  if (az) {
+    const cosZ = Math.cos(az), sinZ = Math.sin(az);
+    return [x1 * cosZ - y1 * sinZ, x1 * sinZ + y1 * cosZ, z2];
+  }
   return [x1, y1, z2];
 }
 
@@ -1610,6 +1615,34 @@ let shakeX = 0, shakeY = 0, shakeTimer = 0;
 let earTwitchCountdown = (30 + Math.random() * 30) * 60; // frames (~60fps)
 let earTwitchTimer = 0;
 let noseScreenX = W/2, noseScreenY = 280; // updated each frame from transformed nose vertex
+
+// Blinking — wolves blink every 4-8s, ~200-300ms close-open
+let blinkTimer = 240 + Math.random() * 240; // frames until next blink
+let blinkPhase = 0; // >0 = blink in progress (counts down)
+let blinkValue = 0; // current eyelid override (0-1)
+let blinkDouble = false; // second blink pending
+let blinkDormant = false; // slow relaxed blink
+let blinkDuration = 15; // total frames for current blink
+
+// Sniffing — nostril flare + nose bob every 6-15s
+let sniffTimer = 360 + Math.random() * 540;
+let sniffPhase = 0; // >0 = sniff in progress
+let sniffBurstLeft = 0; // remaining sniffs in burst
+let curSniffBob = 0; // nose Y offset
+let curSniffFlare = 0; // nostril width scale
+
+// Independent ear — one ear flicks toward imagined sound every 12-25s
+let earIndTimer = 720 + Math.random() * 780;
+let earIndSide = 0; // 0=left, 1=right
+let earIndPhase = 0; // >0 = flick in progress
+let earIndDuration = 22; // total frames for current flick
+let curEarIndL = 0, curEarIndR = 0; // per-ear pin offset
+
+// Head tilt — canine curiosity tilt every 20-40s
+let tiltTimer = 1200 + Math.random() * 1200;
+let tiltTarget = 0; // target Z rotation (radians)
+let curTilt = 0, velTilt = 0;
+const springTilt = { k: 0.05, d: 0.82 }; // gentle, slow settle
 
 // Breath particles
 let breathParts = [];
@@ -1698,6 +1731,8 @@ function drawWolf(time) {
   curJawDrop = Math.max(-1, Math.min(8, curJawDrop + velJawDrop * df));
   velEyelid = (velEyelid + (eyelidClose - curEyelid) * springLid.k * df) * Math.pow(springLid.d, df);
   curEyelid = Math.max(-0.1, Math.min(1.1, curEyelid + velEyelid * df));
+  // Blink override — fast eyelid close-open bypassing the slow spring
+  if (blinkValue > 0.01) curEyelid = Math.max(curEyelid, blinkValue);
 
   // Breathing
   const breathPhase = Math.sin(t * (2 * Math.PI / breathSpeed));
@@ -1715,6 +1750,98 @@ function drawWolf(time) {
     earTwitchTimer -= df;
   }
 
+  // ── Blinking — 4-8s interval, ~250ms normal / ~500ms dormant ──
+  if (blinkPhase <= 0) {
+    blinkTimer -= df;
+    if (blinkTimer <= 0 && state.wolfState !== 'asleep') {
+      blinkDormant = (state.wolfState === 'dormant');
+      blinkDuration = blinkDormant ? 30 : 15; // ~500ms slow / ~250ms normal at 60fps
+      blinkPhase = blinkDuration;
+      blinkDouble = (!blinkDormant && Math.random() < 0.20);
+      blinkTimer = (blinkDormant ? 300 : 240) + Math.random() * 240; // 4-8s
+    }
+  }
+  if (blinkPhase > 0) {
+    blinkPhase -= df;
+    const progress = 1 - (blinkPhase / blinkDuration);
+    // Close fast (first 35%), hold briefly (35-50%), open (50-100%)
+    if (progress < 0.35) blinkValue = progress / 0.35;
+    else if (progress < 0.50) blinkValue = 1;
+    else blinkValue = 1 - (progress - 0.50) / 0.50;
+    if (blinkPhase <= 0) {
+      blinkValue = 0;
+      if (blinkDouble) {
+        blinkDouble = false;
+        blinkDuration = 12; // quick second blink ~200ms
+        blinkPhase = blinkDuration;
+      }
+    }
+  }
+
+  // ── Sniffing — nostril flare + nose bob, 6-15s interval ──
+  if (sniffPhase <= 0 && sniffBurstLeft <= 0) {
+    sniffTimer -= df;
+    if (sniffTimer <= 0 && state.wolfState !== 'asleep') {
+      sniffBurstLeft = Math.random() < 0.25 ? (2 + Math.floor(Math.random() * 2)) : 1;
+      sniffTimer = (state.wolfState === 'vigilant' || state.wolfState === 'alert' ? 360 : 540) + Math.random() * 540;
+    }
+  }
+  if (sniffBurstLeft > 0 && sniffPhase <= 0) {
+    sniffPhase = 8; // ~130ms per sniff
+    sniffBurstLeft--;
+  }
+  if (sniffPhase > 0) {
+    sniffPhase -= df;
+    const sp = 1 - (sniffPhase / 8);
+    // Quick rise (30%), slower fall (70%) — like a real sniff inhale
+    const curve = sp < 0.3 ? (sp / 0.3) : (1 - (sp - 0.3) / 0.7);
+    curSniffBob = curve * 1.8;
+    curSniffFlare = curve;
+  } else {
+    curSniffBob *= Math.pow(0.85, df);
+    curSniffFlare *= Math.pow(0.85, df);
+  }
+
+  // ── Independent ear flick — one ear swivels toward imagined sound, 12-25s ──
+  if (earIndPhase <= 0) {
+    earIndTimer -= df;
+    if (earIndTimer <= 0 && state.wolfState !== 'asleep') {
+      earIndSide = Math.random() < 0.5 ? 0 : 1;
+      earIndDuration = 20 + Math.random() * 5; // ~330-420ms
+      earIndPhase = earIndDuration;
+      earIndTimer = 720 + Math.random() * 780;
+    }
+  }
+  if (earIndPhase > 0) {
+    earIndPhase -= df;
+    const ep = 1 - (earIndPhase / earIndDuration);
+    // Quick snap to position (first 25%), slow return (75%)
+    const earCurve = ep < 0.25 ? (ep / 0.25) : Math.max(0, 1 - (ep - 0.25) / 0.75);
+    const flick = earCurve * -0.25;
+    if (earIndSide === 0) { curEarIndL = flick; curEarIndR = 0; }
+    else { curEarIndR = flick; curEarIndL = 0; }
+  } else {
+    curEarIndL *= Math.pow(0.88, df);
+    curEarIndR *= Math.pow(0.88, df);
+  }
+
+  // ── Head tilt — canine curiosity, 20-40s interval, holds 1.5-3s ──
+  if (tiltTarget === 0) {
+    tiltTimer -= df;
+    if (tiltTimer <= 0 && state.wolfState !== 'asleep' && state.wolfState !== 'alert') {
+      tiltTarget = (Math.random() < 0.5 ? -1 : 1) * (0.06 + Math.random() * 0.06); // ~3-7 degrees
+      tiltTimer = 90 + Math.random() * 90; // hold 1.5-3s before releasing
+    }
+  } else {
+    tiltTimer -= df;
+    if (tiltTimer <= 0) {
+      tiltTarget = 0;
+      tiltTimer = 1200 + Math.random() * 1200; // next tilt in 20-40s
+    }
+  }
+  velTilt = (velTilt + (tiltTarget - curTilt) * springTilt.k * df) * Math.pow(springTilt.d, df);
+  curTilt += velTilt * df;
+
   // Shake (alert)
   if (shakeTimer > 0) {
     shakeX = (Math.random() - 0.5) * 4;
@@ -1726,22 +1853,24 @@ function drawWolf(time) {
   const transformed = V.map(([bx, by, bz, group]) => {
     let x = bx, y = by, z = bz;
 
-    // Breathing
+    // Breathing + sniff
     if (group === 'jaw') { y += breathPhase * 1.5 + curJawDrop; }
-    if (group === 'nose') { y += breathPhase * 0.8; }
+    if (group === 'nose') { y += breathPhase * 0.8 + curSniffBob; x *= (1 + curSniffFlare * 0.12); }
 
-    // Ear pinning — pivot near ear base (~Y=-46)
+    // Ear pinning — pivot near ear base (~Y=-46) — asymmetric with independent flick
     if (group === 'ear_l') {
-      y += curEarPin * Math.abs(by + 46) * 0.6;
-      x += curEarPin * 8;
+      const earL = curEarPin + curEarIndL;
+      y += earL * Math.abs(by + 46) * 0.6;
+      x += earL * 8;
     }
     if (group === 'ear_r') {
-      y += curEarPin * Math.abs(by + 46) * 0.6;
-      x -= curEarPin * 8;
+      const earR = curEarPin + curEarIndR;
+      y += earR * Math.abs(by + 46) * 0.6;
+      x -= earR * 8;
     }
 
-    // Head rotation
-    const rv = rotateVertex([x, y, z], -curHeadY * 0.6, curHeadX);
+    // Head rotation (with Z-axis tilt)
+    const rv = rotateVertex([x, y, z], -curHeadY * 0.6, curHeadX, curTilt);
 
     // Scale and translate to screen + shake
     return [
@@ -1976,7 +2105,7 @@ function drawWolf(time) {
     const pulse = Math.sin(bootElapsed / BOOT_PHASES.EYES_END * Math.PI) * 0.4;
     const dotAlpha = Math.min(1, eyeFadeIn + pulse);
     eyeOffsets.forEach(([baseOx, baseOy], idx) => {
-      const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX);
+      const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX, curTilt);
       const ex = wolfCx + rotated[0] * WOLF_SCALE;
       const ey = wolfCy + rotated[1] * WOLF_SCALE + breathBob;
       // Amber pinpoint
@@ -2000,7 +2129,7 @@ function drawWolf(time) {
     // Draw collapsing eye dots
     const shrink = Math.max(0, 1 - closeFlatlineProgress);
     eyeOffsets.forEach(([baseOx, baseOy]) => {
-      const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX);
+      const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX, curTilt);
       const ex = wolfCx + (rotated[0] * WOLF_SCALE) * shrink;
       const ey = (wolfCy + breathBob) + (rotated[1] * WOLF_SCALE) * shrink;
       wCtx.beginPath();
@@ -2062,7 +2191,7 @@ function drawWolf(time) {
 
   eyeOffsets.forEach(([baseOx, baseOy], idx) => {
     // Transform eye center through head rotation
-    const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX);
+    const rotated = rotateVertex([baseOx/WOLF_SCALE, baseOy/WOLF_SCALE, 14], -curHeadY * 0.6, curHeadX, curTilt);
     const ex = wolfCx + rotated[0] * WOLF_SCALE + shakeX;
     const ey = wolfCy + rotated[1] * WOLF_SCALE + shakeY + breathBob;
 
@@ -2347,7 +2476,7 @@ function drawWolf(time) {
     const snarlAlpha = Math.min(1, curJawDrop / 6) * 0.55;
     // 5 wrinkle lines across snout (Z=48-54)
     [[-8, -2, 48], [-4, -3, 51], [0, -4, 54], [4, -3, 51], [8, -2, 48]].forEach(([sx, sy, sz]) => {
-      const rv = rotateVertex([sx, sy, sz], -curHeadY*0.6, curHeadX);
+      const rv = rotateVertex([sx, sy, sz], -curHeadY*0.6, curHeadX, curTilt);
       const px = wolfCx + rv[0]*WOLF_SCALE + shakeX;
       const py = wolfCy + rv[1]*WOLF_SCALE + shakeY + breathBob;
       wCtx.beginPath();
@@ -2361,7 +2490,7 @@ function drawWolf(time) {
     if (curJawDrop > 3) {
       const toothAlpha = Math.min(1, (curJawDrop - 3) / 4) * 0.7;
       [[-6, 2, 52], [-2, 1, 55], [2, 1, 55], [6, 2, 52]].forEach(([tx, ty, tz]) => {
-        const rv = rotateVertex([tx, ty, tz], -curHeadY*0.6, curHeadX);
+        const rv = rotateVertex([tx, ty, tz], -curHeadY*0.6, curHeadX, curTilt);
         const px = wolfCx + rv[0]*WOLF_SCALE + shakeX;
         const py = wolfCy + rv[1]*WOLF_SCALE + shakeY + breathBob;
         wCtx.beginPath();
