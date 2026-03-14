@@ -28,4 +28,7 @@ public class WatchdogIdentityConfig
 
     [JsonPropertyName("headlessBackendUrl")]
     public string HeadlessBackendUrl { get; set; } = "";
+
+    [JsonPropertyName("muted")]
+    public bool Muted { get; set; }
 }

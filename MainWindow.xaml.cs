@@ -288,6 +288,15 @@ public partial class MainWindow : Window
                     SaveWatchdogConfig();
                     break;
 
+                // Sound
+                case "play_boot":
+                    BootSound.Play();
+                    return; // skip PushStateToUI
+                case "toggle_mute":
+                    _watchdogConfig.Muted = !_watchdogConfig.Muted;
+                    SaveWatchdogConfig();
+                    break;
+
                 // Tray
                 case "toggle_tray":
                     _config.Watchdog.MinimizeToTray = !_config.Watchdog.MinimizeToTray;

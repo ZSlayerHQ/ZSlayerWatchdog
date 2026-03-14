@@ -12,6 +12,10 @@ public partial class App : System.Windows.Application
         var watchdogConfigPath = Path.Combine(AppContext.BaseDirectory, "watchdog-config.json");
         var watchdogConfig = LoadWatchdogConfig(watchdogConfigPath);
 
+        // Pre-render boot sound WAV while WebView2 initializes (plays on navigation complete)
+        if (!watchdogConfig.Muted)
+            BootSound.PreRender();
+
         var sptRoot = DiscoverSptRoot();
         var canManageServer = sptRoot != null;
 

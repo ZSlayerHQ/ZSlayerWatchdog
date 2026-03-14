@@ -186,7 +186,7 @@ body{
 .sentinel-lbl{
   --sd:3s;--sr:100;--sg:90;--sb:70;
   display:flex;align-items:center;justify-content:center;gap:6px;
-  margin:5px 0 6px 0;padding:0 8px;position:relative;
+  margin:10px 0 2px 0;padding:0 8px;position:relative;
 }
 .sl-wing{
   flex:0 0 28px;height:1px;
@@ -227,6 +227,9 @@ body{
   }
 }
 @keyframes slWing{0%,100%{opacity:0.12;}50%{opacity:0.7;}}
+
+/* ═══ STATUS GROUP (sentinel + breath bar) ═══ */
+.status-group{display:flex;flex-direction:column;align-items:stretch;flex-shrink:0;gap:0;}
 
 /* ═══ PANELS ROW ═══ */
 .panels{display:flex;gap:12px;flex-shrink:0;}
@@ -421,6 +424,69 @@ body{
   animation:helpFade 6s ease forwards;
 }
 @keyframes helpFade{0%{opacity:0;transform:translateX(-50%) translateY(10px);}10%{opacity:1;transform:translateX(-50%) translateY(0);}80%{opacity:1;}100%{opacity:0;}}
+
+/* ═══ ENHANCEMENT 2: PANEL SWEEP ═══ */
+@keyframes panelSweep {
+  0% { left: -20%; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+.panel-sweep {
+  position: absolute; top: 0; left: -20%; width: 20%; height: 2px;
+  border-radius: 1px;
+  pointer-events: none; z-index: 5;
+  animation: panelSweep 0.6s ease-out forwards;
+}
+
+/* ═══ ENHANCEMENT 3: LIVE EVENT TICKER ═══ */
+.ticker {
+  height: 0; overflow: visible; position: relative; flex-shrink: 0;
+  font-family: 'Share Tech Mono', monospace; font-size: 9px;
+  letter-spacing: 1px; color: var(--text-dim); z-index: 15;
+}
+.ticker-item {
+  position: absolute; width: 100%; text-align: center;
+  top: -11px; /* center vertically on the gap */
+  animation: tickSlide 0.3s ease-out forwards;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 22px; pointer-events: none;
+}
+@keyframes tickSlide {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes tickFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-100%); }
+}
+
+/* ═══ ENHANCEMENT 6: MICRO-INTERACTIONS ═══ */
+.slider-wrap.slider-active .slider-fill {
+  box-shadow: 0 0 10px var(--amber-glow), 0 0 20px rgba(212,160,50,0.15);
+  filter: brightness(1.2);
+}
+.slider-wrap.slider-active .slider-thumb {
+  box-shadow: 0 0 14px var(--amber-glow), 0 0 28px rgba(212,160,50,0.1);
+  transform: translate(-50%,-50%) scale(1.15);
+}
+@keyframes btnAfterglow {
+  0% { box-shadow: var(--ag-shadow, 0 0 14px var(--amber-glow)); }
+  100% { box-shadow: none; }
+}
+.btn-afterglow { animation: btnAfterglow 0.5s ease-out forwards; }
+
+/* ═══ ENHANCEMENT 7: HEARTBEAT CANVAS ═══ */
+.cv-heartbeat { vertical-align: middle; margin-left: 4px; }
+
+/* ═══ ENHANCEMENT 1: MUTE TOGGLE ═══ */
+.mute-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  color: var(--text-dim); font-size: 14px; line-height: 1;
+  transition: color 0.2s; display: flex; align-items: center;
+}
+.mute-btn:hover { color: var(--amber); }
+.mute-btn.muted { color: var(--red-bright); opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -457,6 +523,9 @@ body{
   <!-- Content -->
   <div class="content">
 
+    <!-- Live Event Ticker -->
+    <div class="ticker" id="ticker"></div>
+
     <!-- Wolf Zone -->
     <div class="wolf-zone">
       <div class="wolf-side" style="align-items:flex-end;text-align:right;">
@@ -473,16 +542,18 @@ body{
       </div>
     </div>
 
-    <div class="breath-bar" id="breathBar">
-      <div class="breath-halo"></div>
-      <div class="breath-cap breath-cap--l"></div>
-      <div class="breath-cap breath-cap--r"></div>
-      <div class="breath-tube"><div class="breath-energy" id="breathEnergy"></div></div>
-    </div>
-    <div class="sentinel-lbl sl--offline" id="sentinelLbl">
-      <span class="sl-wing sl-wing--l"></span>
-      <span class="sl-txt" id="sentinelText">◇ STANDING BY ◇</span>
-      <span class="sl-wing sl-wing--r"></span>
+    <div class="status-group">
+      <div class="sentinel-lbl sl--offline" id="sentinelLbl">
+        <span class="sl-wing sl-wing--l"></span>
+        <span class="sl-txt" id="sentinelText">◇ STANDING BY ◇</span>
+        <span class="sl-wing sl-wing--r"></span>
+      </div>
+      <div class="breath-bar" id="breathBar">
+        <div class="breath-halo"></div>
+        <div class="breath-cap breath-cap--l"></div>
+        <div class="breath-cap breath-cap--r"></div>
+        <div class="breath-tube"><div class="breath-energy" id="breathEnergy"></div></div>
+      </div>
     </div>
 
     <!-- Server Panels -->
@@ -553,7 +624,8 @@ body{
     <!-- Bottom Bar -->
     <div class="bottombar">
       <div class="bb-left">
-        <div class="bb-status" id="bbStatus"><span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span></div>
+        <button class="mute-btn" id="muteBtn" data-hover title="Toggle sound effects">&#x1f50a;</button>
+        <div class="bb-status" id="bbStatus"><span class="bb-dot bb-dot--a"></span><span style="color:var(--amber)">Disconnected</span><canvas class="cv-heartbeat" id="cvHeartbeat" width="60" height="16"></canvas></div>
         <span class="bb-sep">|</span>
         <div class="bb-tray" title="Hide the SPT server terminal window on startup (takes effect on next server start)">Server Hidden <div class="toggle" id="togStartHidden" data-hover><div class="toggle-t"></div></div></div>
         <span class="bb-sep">|</span>
@@ -1655,20 +1727,29 @@ function drawWolf(time) {
       bootIgnitionMult = 1 + (1 - ignP) * 2.5;
       if (!ignitionBurstFired) {
         ignitionBurstFired = true;
-        for (let i = 0; i < 40; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 2 + Math.random() * 4;
-          embers.push({
-            x: wolfCx + Math.cos(angle) * 15,
-            y: wolfCy + Math.sin(angle) * 15,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - 1,
-            size: 1.5 + Math.random() * 2.5,
-            life: 0.6 + Math.random() * 0.4,
-            opacity: 0.7 + Math.random() * 0.3,
-            hue: Math.random() * 40,
-            flare: true, flareTimer: 0, age: 60,
-          });
+        // Burst from both eyes
+        const eyeR = rotateVertex([15.5, -23, 14], -curHeadY * 0.6, curHeadX, curTilt);
+        const eyeL = rotateVertex([-15.5, -23, 14], -curHeadY * 0.6, curHeadX, curTilt);
+        const eyePositions = [
+          [wolfCx + eyeR[0] * WOLF_SCALE, wolfCy + eyeR[1] * WOLF_SCALE],
+          [wolfCx + eyeL[0] * WOLF_SCALE, wolfCy + eyeL[1] * WOLF_SCALE]
+        ];
+        for (const [epx, epy] of eyePositions) {
+          for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 2;
+            embers.push({
+              x: epx + Math.cos(angle) * 4,
+              y: epy + Math.sin(angle) * 4,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed - 0.5,
+              size: 1 + Math.random() * 1.5,
+              life: 0.4 + Math.random() * 0.3,
+              opacity: 0.4 + Math.random() * 0.3,
+              hue: Math.random() * 40,
+              flare: true, flareTimer: 0, age: 60,
+            });
+          }
         }
       }
     } else {
@@ -2735,20 +2816,28 @@ function loop(time) {
     bootElapsed += dt;
     // Ignition shockwave — fire once when entering ignite phase
     if (bootElapsed >= BOOT_PHASES.CASCADE_END && bootElapsed - dt < BOOT_PHASES.CASCADE_END) {
-      // Shockwave burst: ring of 40 embers exploding outward from wolf head
-      for (let i = 0; i < 40; i++) {
-        const angle = (i / 40) * Math.PI * 2 + Math.random() * 0.15;
-        const speed = 2.5 + Math.random() * 3;
-        const colors = ['#e8a020','#f0c848','#d48020','#f0e068','#ff8830'];
-        sparks.push({
-          x: wolfCx + Math.cos(angle) * 20,
-          y: wolfCy + Math.sin(angle) * 20,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1,
-          size: 2 + Math.random() * 2,
-          color: colors[Math.floor(Math.random() * colors.length)]
-        });
+      // Shockwave burst from both eyes
+      const seyeR = rotateVertex([15.5, -23, 14], -curHeadY * 0.6, curHeadX, curTilt);
+      const seyeL = rotateVertex([-15.5, -23, 14], -curHeadY * 0.6, curHeadX, curTilt);
+      const sparkEyes = [
+        [wolfCx + seyeR[0] * WOLF_SCALE, wolfCy + seyeR[1] * WOLF_SCALE],
+        [wolfCx + seyeL[0] * WOLF_SCALE, wolfCy + seyeL[1] * WOLF_SCALE]
+      ];
+      for (const [spx, spy] of sparkEyes) {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.3;
+          const speed = 1.5 + Math.random() * 2;
+          const colors = ['#e8a020','#f0c848','#d48020','#f0e068','#ff8830'];
+          sparks.push({
+            x: spx + Math.cos(angle) * 5,
+            y: spy + Math.sin(angle) * 5,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0.6,
+            size: 1 + Math.random() * 1.5,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
       }
     }
     if (bootElapsed >= BOOT_PHASES.IGNITE_END) {
@@ -2821,6 +2910,312 @@ function formatTime(s) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
+// ═══ SOUND ENGINE (must be before first RAF so boot sound syncs with animation) ═══
+const SoundEngine = {
+  ctx: null,
+  muted: localStorage.getItem('wd_muted') === '1',
+  droneNodes: null,
+  droneGain: null,
+  initialized: false,
+  masterGain: null,
+
+  init() {
+    if (this.initialized) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = 1;
+      this.masterGain.connect(this.ctx.destination);
+      this.initialized = true;
+    } catch(e) {}
+  },
+
+  _makeChain(dryGain, wetGain, filterFreq) {
+    const dry = this.ctx.createGain();
+    dry.gain.value = dryGain || 1;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = filterFreq || 3000;
+    filter.Q.value = 0.7;
+    dry.connect(filter);
+    filter.connect(this.masterGain);
+    if (wetGain > 0) {
+      const delay = this.ctx.createDelay();
+      delay.delayTime.value = 0.08;
+      const fb = this.ctx.createGain();
+      fb.gain.value = 0.25;
+      const wet = this.ctx.createGain();
+      wet.gain.value = wetGain;
+      const hpf = this.ctx.createBiquadFilter();
+      hpf.type = 'highpass'; hpf.frequency.value = 400;
+      dry.connect(delay);
+      delay.connect(fb);
+      fb.connect(delay);
+      delay.connect(hpf);
+      hpf.connect(wet);
+      wet.connect(this.masterGain);
+    }
+    return dry;
+  },
+
+  _voice(freq, type, gain, chain, startT, stopT, detune) {
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    if (detune) o.detune.value = detune;
+    g.gain.value = 0;
+    o.connect(g);
+    g.connect(chain);
+    o.start(startT);
+    o.stop(stopT + 0.05);
+    return { osc: o, gain: g };
+  },
+
+  play(name) {
+    if (this.muted || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      switch(name) {
+        case 'click': {
+          const chain = this._makeChain(0.8, 0.15, 4500);
+          const v1 = this._voice(660, 'sine', 1, chain, t, t + 0.08);
+          v1.gain.gain.setValueAtTime(0.07, t);
+          v1.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+          v1.osc.frequency.setValueAtTime(660, t);
+          v1.osc.frequency.exponentialRampToValueAtTime(380, t + 0.04);
+          const v2 = this._voice(1320, 'sine', 1, chain, t, t + 0.06, 7);
+          v2.gain.gain.setValueAtTime(0.025, t);
+          v2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+          const v3 = this._voice(120, 'sine', 1, chain, t, t + 0.05);
+          v3.gain.gain.setValueAtTime(0.04, t);
+          v3.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+          break;
+        }
+        case 'start': {
+          const chain = this._makeChain(0.7, 0.3, 5000);
+          const v1 = this._voice(180, 'sine', 1, chain, t, t + 0.45);
+          v1.gain.gain.setValueAtTime(0, t);
+          v1.gain.gain.linearRampToValueAtTime(0.07, t + 0.05);
+          v1.gain.gain.setValueAtTime(0.07, t + 0.2);
+          v1.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+          v1.osc.frequency.setValueAtTime(180, t);
+          v1.osc.frequency.exponentialRampToValueAtTime(520, t + 0.3);
+          const v2 = this._voice(360, 'sine', 1, chain, t + 0.03, t + 0.4, 5);
+          v2.gain.gain.setValueAtTime(0, t + 0.03);
+          v2.gain.gain.linearRampToValueAtTime(0.035, t + 0.1);
+          v2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+          v2.osc.frequency.setValueAtTime(360, t + 0.03);
+          v2.osc.frequency.exponentialRampToValueAtTime(1040, t + 0.3);
+          const v3 = this._voice(780, 'sine', 1, chain, t + 0.15, t + 0.5, -3);
+          v3.gain.gain.setValueAtTime(0, t + 0.15);
+          v3.gain.gain.linearRampToValueAtTime(0.02, t + 0.25);
+          v3.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          const v4 = this._voice(90, 'sine', 1, chain, t, t + 0.3);
+          v4.gain.gain.setValueAtTime(0.05, t);
+          v4.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+          break;
+        }
+        case 'stop': {
+          const chain = this._makeChain(0.8, 0.2, 2500);
+          const v1 = this._voice(380, 'sine', 1, chain, t, t + 0.35);
+          v1.gain.gain.setValueAtTime(0.07, t);
+          v1.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+          v1.osc.frequency.setValueAtTime(380, t);
+          v1.osc.frequency.exponentialRampToValueAtTime(65, t + 0.25);
+          const v2 = this._voice(385, 'sine', 1, chain, t, t + 0.3, -8);
+          v2.gain.gain.setValueAtTime(0.04, t);
+          v2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+          v2.osc.frequency.setValueAtTime(385, t);
+          v2.osc.frequency.exponentialRampToValueAtTime(62, t + 0.25);
+          const v3 = this._voice(50, 'sine', 1, chain, t + 0.02, t + 0.3);
+          v3.gain.gain.setValueAtTime(0.06, t + 0.02);
+          v3.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+          break;
+        }
+        case 'alert': {
+          const chain = this._makeChain(0.6, 0.4, 6000);
+          const v1 = this._voice(440, 'sine', 1, chain, t, t + 0.25);
+          v1.gain.gain.setValueAtTime(0, t);
+          v1.gain.gain.linearRampToValueAtTime(0.08, t + 0.015);
+          v1.gain.gain.setValueAtTime(0.08, t + 0.1);
+          v1.gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+          const v1h = this._voice(880, 'sine', 1, chain, t, t + 0.2, 4);
+          v1h.gain.gain.setValueAtTime(0.02, t);
+          v1h.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+          const v2 = this._voice(659, 'sine', 1, chain, t + 0.13, t + 0.45);
+          v2.gain.gain.setValueAtTime(0, t + 0.13);
+          v2.gain.gain.linearRampToValueAtTime(0.09, t + 0.145);
+          v2.gain.gain.setValueAtTime(0.09, t + 0.25);
+          v2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+          const v2h = this._voice(1318, 'sine', 1, chain, t + 0.13, t + 0.4, -3);
+          v2h.gain.gain.setValueAtTime(0.015, t + 0.13);
+          v2h.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+          break;
+        }
+      }
+    } catch(e) {}
+  },
+
+  setDrone(on) {
+    if (!this.ctx) return;
+    try {
+      if (on && !this.droneNodes) {
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 200; filter.Q.value = 1.5;
+        gain.connect(filter);
+        filter.connect(this.masterGain);
+        const lfo = this.ctx.createOscillator();
+        const lfoGain = this.ctx.createGain();
+        lfo.type = 'sine'; lfo.frequency.value = 0.15;
+        lfoGain.gain.value = 60;
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        lfo.start();
+        const o1 = this.ctx.createOscillator();
+        o1.type = 'sine'; o1.frequency.value = 48;
+        o1.connect(gain);
+        const o2 = this.ctx.createOscillator();
+        o2.type = 'sine'; o2.frequency.value = 72; o2.detune.value = 3;
+        const g2 = this.ctx.createGain(); g2.gain.value = 0.4;
+        o2.connect(g2); g2.connect(gain);
+        const o3 = this.ctx.createOscillator();
+        o3.type = 'sine'; o3.frequency.value = 96; o3.detune.value = -2;
+        const g3 = this.ctx.createGain(); g3.gain.value = 0.2;
+        o3.connect(g3); g3.connect(gain);
+        o1.start(); o2.start(); o3.start();
+        this.droneNodes = [o1, o2, o3, lfo];
+        this.droneGain = gain;
+        if (!this.muted) gain.gain.linearRampToValueAtTime(0.025, this.ctx.currentTime + 2);
+      } else if (!on && this.droneNodes) {
+        this.droneGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1);
+        const nodes = this.droneNodes;
+        setTimeout(() => { nodes.forEach(n => { try { n.stop(); } catch(e) {} }); }, 1200);
+        this.droneNodes = null; this.droneGain = null;
+      } else if (on && this.droneNodes && this.droneGain) {
+        if (!this.muted) this.droneGain.gain.linearRampToValueAtTime(0.025, this.ctx.currentTime + 1);
+      }
+    } catch(e) {}
+  },
+
+  playBoot() {
+    if (this.muted || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      // Phase 1: Eyes (0–0.8s)
+      const eyeChain = this._makeChain(0.8, 0.3, 800);
+      const e1 = this._voice(55, 'sine', 1, eyeChain, t, t + 1.0);
+      e1.gain.gain.setValueAtTime(0, t);
+      e1.gain.gain.linearRampToValueAtTime(0.04, t + 0.6);
+      e1.gain.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+      const e2 = this._voice(880, 'sine', 1, eyeChain, t + 0.2, t + 0.9, 5);
+      e2.gain.gain.setValueAtTime(0, t + 0.2);
+      e2.gain.gain.linearRampToValueAtTime(0.008, t + 0.5);
+      e2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+      // Phase 2: Scan (0.8–1.8s)
+      const scanChain = this._makeChain(0.7, 0.25, 3500);
+      const s1 = this._voice(120, 'sine', 1, scanChain, t + 0.8, t + 2.0);
+      s1.gain.gain.setValueAtTime(0, t + 0.8);
+      s1.gain.gain.linearRampToValueAtTime(0.05, t + 1.0);
+      s1.gain.gain.setValueAtTime(0.05, t + 1.6);
+      s1.gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+      s1.osc.frequency.setValueAtTime(120, t + 0.8);
+      s1.osc.frequency.exponentialRampToValueAtTime(340, t + 1.8);
+      const s2 = this._voice(122, 'sine', 1, scanChain, t + 0.8, t + 1.9, 8);
+      s2.gain.gain.setValueAtTime(0, t + 0.8);
+      s2.gain.gain.linearRampToValueAtTime(0.025, t + 1.0);
+      s2.gain.gain.exponentialRampToValueAtTime(0.001, t + 1.9);
+      s2.osc.frequency.setValueAtTime(122, t + 0.8);
+      s2.osc.frequency.exponentialRampToValueAtTime(345, t + 1.8);
+      // Phase 3: Cascade (1.8–2.6s)
+      const cascChain = this._makeChain(0.6, 0.35, 5000);
+      const c1 = this._voice(220, 'sine', 1, cascChain, t + 1.8, t + 2.8);
+      c1.gain.gain.setValueAtTime(0, t + 1.8);
+      c1.gain.gain.linearRampToValueAtTime(0.06, t + 2.0);
+      c1.gain.gain.setValueAtTime(0.06, t + 2.4);
+      c1.gain.gain.exponentialRampToValueAtTime(0.001, t + 2.8);
+      c1.osc.frequency.setValueAtTime(220, t + 1.8);
+      c1.osc.frequency.exponentialRampToValueAtTime(440, t + 2.6);
+      const c2 = this._voice(330, 'sine', 1, cascChain, t + 1.9, t + 2.7, -4);
+      c2.gain.gain.setValueAtTime(0, t + 1.9);
+      c2.gain.gain.linearRampToValueAtTime(0.035, t + 2.1);
+      c2.gain.gain.exponentialRampToValueAtTime(0.001, t + 2.7);
+      c2.osc.frequency.setValueAtTime(330, t + 1.9);
+      c2.osc.frequency.exponentialRampToValueAtTime(660, t + 2.6);
+      const c3 = this._voice(80, 'sine', 1, cascChain, t + 1.8, t + 2.6);
+      c3.gain.gain.setValueAtTime(0.02, t + 1.8);
+      c3.gain.gain.linearRampToValueAtTime(0.05, t + 2.4);
+      c3.gain.gain.exponentialRampToValueAtTime(0.001, t + 2.6);
+      // Phase 4: Ignite (2.6–3.4s)
+      const ignChain = this._makeChain(0.5, 0.45, 6000);
+      const i1 = this._voice(60, 'sine', 1, ignChain, t + 2.6, t + 3.1);
+      i1.gain.gain.setValueAtTime(0.08, t + 2.6);
+      i1.gain.gain.exponentialRampToValueAtTime(0.001, t + 3.1);
+      const i2 = this._voice(440, 'sine', 1, ignChain, t + 2.6, t + 3.6);
+      i2.gain.gain.setValueAtTime(0, t + 2.6);
+      i2.gain.gain.linearRampToValueAtTime(0.055, t + 2.7);
+      i2.gain.gain.setValueAtTime(0.055, t + 3.0);
+      i2.gain.gain.exponentialRampToValueAtTime(0.001, t + 3.6);
+      const i3 = this._voice(660, 'sine', 1, ignChain, t + 2.62, t + 3.5, 3);
+      i3.gain.gain.setValueAtTime(0, t + 2.62);
+      i3.gain.gain.linearRampToValueAtTime(0.04, t + 2.72);
+      i3.gain.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
+      const i4 = this._voice(880, 'sine', 1, ignChain, t + 2.65, t + 3.4, -5);
+      i4.gain.gain.setValueAtTime(0, t + 2.65);
+      i4.gain.gain.linearRampToValueAtTime(0.02, t + 2.75);
+      i4.gain.gain.exponentialRampToValueAtTime(0.001, t + 3.4);
+    } catch(e) {}
+  },
+
+  playClose() {
+    if (this.muted || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const colChain = this._makeChain(0.7, 0.3, 3000);
+      const cl1 = this._voice(440, 'sine', 1, colChain, t, t + 1.0);
+      cl1.gain.gain.setValueAtTime(0.05, t);
+      cl1.gain.gain.setValueAtTime(0.05, t + 0.5);
+      cl1.gain.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+      cl1.osc.frequency.setValueAtTime(440, t);
+      cl1.osc.frequency.exponentialRampToValueAtTime(160, t + 0.8);
+      const cl2 = this._voice(445, 'sine', 1, colChain, t, t + 0.9, -10);
+      cl2.gain.gain.setValueAtTime(0.03, t);
+      cl2.gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+      cl2.osc.frequency.setValueAtTime(445, t);
+      cl2.osc.frequency.exponentialRampToValueAtTime(155, t + 0.8);
+      const disChain = this._makeChain(0.8, 0.2, 1500);
+      const d1 = this._voice(160, 'sine', 1, disChain, t + 0.8, t + 1.8);
+      d1.gain.gain.setValueAtTime(0.04, t + 0.8);
+      d1.gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+      d1.osc.frequency.setValueAtTime(160, t + 0.8);
+      d1.osc.frequency.exponentialRampToValueAtTime(60, t + 1.6);
+      const d2 = this._voice(320, 'sine', 1, disChain, t + 0.8, t + 1.5, 12);
+      d2.gain.gain.setValueAtTime(0.015, t + 0.8);
+      d2.gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+      d2.osc.frequency.setValueAtTime(320, t + 0.8);
+      d2.osc.frequency.exponentialRampToValueAtTime(80, t + 1.5);
+      const flatChain = this._makeChain(0.9, 0.15, 600);
+      const f1 = this._voice(45, 'sine', 1, flatChain, t + 1.6, t + 2.2);
+      f1.gain.gain.setValueAtTime(0.06, t + 1.6);
+      f1.gain.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+    } catch(e) {}
+  },
+
+  toggleMute() {
+    this.muted = !this.muted;
+    localStorage.setItem('wd_muted', this.muted ? '1' : '0');
+    if (this.droneGain) {
+      this.droneGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.025, (this.ctx?.currentTime || 0) + 0.3);
+    }
+    return this.muted;
+  }
+};
+
+// Init audio engine + tell C# to play boot sound in sync with animation start
+SoundEngine.init();
+send('play_boot');
 requestAnimationFrame(loop);
 
 // ═══ CURSOR RING POSITIONING ═══
@@ -2843,6 +3238,7 @@ function startCloseAnimation(callback) {
   closing = true;
   closeElapsed = 0;
   closeCallback = callback;
+  SoundEngine.playClose();
 }
 
 // ── Titlebar buttons ──
@@ -3279,6 +3675,353 @@ document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
     setTimeout(() => btn.style.transition = '', 400);
   });
 });
+
+// Mute button
+const muteBtn = document.getElementById('muteBtn');
+if (SoundEngine.muted) muteBtn.classList.add('muted');
+muteBtn.innerHTML = SoundEngine.muted ? '&#x1f507;' : '&#x1f50a;';
+muteBtn.addEventListener('click', () => {
+  SoundEngine.init();
+  const muted = SoundEngine.toggleMute();
+  muteBtn.classList.toggle('muted', muted);
+  muteBtn.innerHTML = muted ? '&#x1f507;' : '&#x1f50a;';
+  send('toggle_mute');
+});
+
+// ═══ ENHANCEMENT 3: LIVE EVENT TICKER ═══
+const tickerEl = document.getElementById('ticker');
+let tickerTimeout = null;
+
+function tickerLog(msg, color) {
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+  // Fade out existing
+  const existing = tickerEl.querySelector('.ticker-item');
+  if (existing) {
+    existing.style.animation = 'tickFade 0.2s ease-out forwards';
+    setTimeout(() => existing.remove(), 200);
+  }
+  if (tickerTimeout) clearTimeout(tickerTimeout);
+  const item = document.createElement('div');
+  item.className = 'ticker-item';
+  item.style.color = color || 'var(--text-dim)';
+  item.textContent = ts + '  ' + msg;
+  setTimeout(() => tickerEl.appendChild(item), existing ? 150 : 0);
+  tickerTimeout = setTimeout(() => {
+    const el = tickerEl.querySelector('.ticker-item');
+    if (el) { el.style.animation = 'tickFade 0.3s ease-out forwards'; setTimeout(() => el.remove(), 300); }
+  }, 8000);
+}
+
+// ═══ ENHANCEMENT 7: CONNECTION HEARTBEAT VISUALIZER ═══
+const hbCanvas = document.getElementById('cvHeartbeat');
+const hbCtx = hbCanvas.getContext('2d');
+const hbData = new Float32Array(60).fill(0);
+let hbOffset = 0;
+let hbConnected = false;
+
+function heartbeatBeat() {
+  // QRS complex pattern: small down, big up, small down, normalize
+  const idx = hbOffset;
+  hbData[(idx + 0) % 60] = -0.15;
+  hbData[(idx + 1) % 60] = 0.85;
+  hbData[(idx + 2) % 60] = -0.3;
+  hbData[(idx + 3) % 60] = 0.12;
+  hbData[(idx + 4) % 60] = 0;
+}
+
+function drawHeartbeat() {
+  const w = 60, h = 16;
+  hbCtx.clearRect(0, 0, w, h);
+  const cy = h / 2;
+  const color = hbConnected ? 'rgba(102,217,106,' : 'rgba(231,76,60,';
+
+  // Glow line
+  hbCtx.beginPath();
+  for (let i = 0; i < w; i++) {
+    const di = (hbOffset - w + i + 60 * 10) % 60;
+    const val = hbData[di] || 0;
+    const y = cy - val * (h * 0.4);
+    if (i === 0) hbCtx.moveTo(i, y);
+    else hbCtx.lineTo(i, y);
+  }
+  hbCtx.strokeStyle = color + '0.15)';
+  hbCtx.lineWidth = 3;
+  hbCtx.stroke();
+
+  // Crisp line
+  hbCtx.beginPath();
+  for (let i = 0; i < w; i++) {
+    const di = (hbOffset - w + i + 60 * 10) % 60;
+    const val = hbData[di] || 0;
+    const y = cy - val * (h * 0.4);
+    if (i === 0) hbCtx.moveTo(i, y);
+    else hbCtx.lineTo(i, y);
+  }
+  hbCtx.strokeStyle = color + '0.8)';
+  hbCtx.lineWidth = 1;
+  hbCtx.stroke();
+
+  // Scroll: advance offset and decay
+  hbOffset = (hbOffset + 1) % 60;
+  hbData[hbOffset] = 0; // clear ahead
+}
+
+// Draw heartbeat at ~30fps (every 2 frames)
+let hbFrameCount = 0;
+
+// ═══ ENHANCEMENT 2: PANEL STATE TRANSITION TRACKING ═══
+let prevSptPanelClass = 'panel stopped';
+let prevHlPanelClass = 'panel stopped';
+
+function triggerPanelSweep(panelEl, newClass) {
+  let color = 'var(--red)';
+  if (newClass.includes('running')) color = 'var(--green)';
+  else if (newClass.includes('starting')) color = 'var(--amber)';
+  const sweep = document.createElement('div');
+  sweep.className = 'panel-sweep';
+  sweep.style.background = 'linear-gradient(90deg, transparent, ' + color + ', transparent)';
+  sweep.style.boxShadow = '0 0 8px ' + color;
+  panelEl.appendChild(sweep);
+  sweep.addEventListener('animationend', () => sweep.remove());
+}
+
+// ═══ STATE TRACKING FOR SOUND + TICKER ═══
+let prevSptRunning = false;
+let prevHlRunning = false;
+let prevConnected = false;
+let prevWolfState = 'dormant';
+
+// ═══ ENHANCEMENT 4: DYNAMIC BACKGROUND REACTION ═══
+let bgNeedsRedraw = true;
+
+function drawBgReactive() {
+  bCtx.clearRect(0, 0, W, H);
+  // Grid opacity varies by state
+  let gridAlpha = 0.25;
+  const ws = state.wolfState;
+  if (ws === 'healthy') gridAlpha = 0.35;
+  else if (ws === 'vigilant') gridAlpha = 0.30;
+  else if (ws === 'alert') gridAlpha = 0.50;
+  else if (ws === 'dormant' || ws === 'asleep') gridAlpha = 0.15;
+
+  const sp = 50;
+  const alertTint = ws === 'alert';
+
+  for (let x = 0; x < W; x += sp) {
+    let a = gridAlpha;
+    // Alert: tint grid near wolf center
+    if (alertTint) {
+      const dx = Math.abs(x - wolfCx);
+      if (dx < 150) a = gridAlpha + (1 - dx/150) * 0.15;
+    }
+    bCtx.strokeStyle = alertTint && Math.abs(x - wolfCx) < 150
+      ? `rgba(180,50,40,${a.toFixed(3)})`
+      : `rgba(42,37,32,${a.toFixed(3)})`;
+    bCtx.lineWidth = 0.5;
+    bCtx.beginPath(); bCtx.moveTo(x,0); bCtx.lineTo(x,H); bCtx.stroke();
+  }
+  for (let y = 0; y < H; y += sp) {
+    let a = gridAlpha;
+    if (alertTint) {
+      const dy = Math.abs(y - wolfCy);
+      if (dy < 150) a = gridAlpha + (1 - dy/150) * 0.15;
+    }
+    bCtx.strokeStyle = alertTint && Math.abs(y - wolfCy) < 150
+      ? `rgba(180,50,40,${a.toFixed(3)})`
+      : `rgba(42,37,32,${a.toFixed(3)})`;
+    bCtx.lineWidth = 0.5;
+    bCtx.beginPath(); bCtx.moveTo(0,y); bCtx.lineTo(W,y); bCtx.stroke();
+  }
+
+  // Scan lines
+  bCtx.fillStyle = `rgba(0,0,0,${ws === 'dormant' || ws === 'asleep' ? '0.025' : '0.015'})`;
+  for (let y = 0; y < H; y += 3) bCtx.fillRect(0, y, W, 1);
+
+}
+
+// ═══ INJECT INTO MAIN LOOP ═══
+// Patch the loop to add heartbeat drawing, cursor trail embers, and dynamic bg
+const _origLoop = loop;
+// We need to hook into the animation frame. Override via a wrapper that calls after main loop.
+let loopEnhancementsActive = true;
+const origRAF = window.requestAnimationFrame;
+let lastHbDraw = 0;
+
+// Patch: add enhancements to main loop end
+// We'll use a post-frame hook since we can't easily wrap the recursive RAF call
+setInterval(() => {
+  if (!loopEnhancementsActive) return;
+  // Heartbeat draw (~30fps = every ~33ms)
+  drawHeartbeat();
+}, 33);
+
+// Dynamic background: redraws on wolf state change (triggered in updateState hook)
+
+// ═══ ENHANCEMENT 5: CURSOR TRAIL EMBERS ═══
+let cursorEmberFrame = 0;
+// Inject cursor trail logic into the main loop by patching drawParticles
+const _origDrawParticles = drawParticles;
+// We can't easily patch the named function, so we'll use an interval approach
+// that spawns trail embers based on mouse velocity and position
+setInterval(() => {
+  if (!bootComplete || closing) return;
+  cursorEmberFrame++;
+  if (cursorEmberFrame % 2 !== 0) return; // every 2 frames worth
+
+  const speed = Math.sqrt(mouse.vx * mouse.vx + mouse.vy * mouse.vy);
+  if (speed < 2) return;
+
+  const dx = mouse.x - wolfCx;
+  const dy = mouse.y - wolfCy;
+  const distToWolf = Math.sqrt(dx * dx + dy * dy);
+  if (distToWolf > 200) return;
+
+  // Spawn 1-2 small trail embers
+  const count = speed > 5 ? 2 : 1;
+  const trailColors = ['#e87830','#d4a032','#f0c048'];
+  for (let i = 0; i < count; i++) {
+    embers.push({
+      x: mouse.x + (Math.random()-0.5) * 6,
+      y: mouse.y + (Math.random()-0.5) * 6,
+      vx: (Math.random()-0.5) * 0.3,
+      vy: -(Math.random() * 0.5 + 0.2),
+      size: 0.5 + Math.random() * 1,
+      color: trailColors[Math.floor(Math.random() * trailColors.length)],
+      opacity: 0.5 + Math.random() * 0.3,
+      life: 0.3 + Math.random() * 0.2,
+      age: 60, // skip fade-in
+      flare: 0,
+      flareTimer: 0,
+    });
+  }
+}, 33); // ~30fps check
+
+// ═══ ENHANCEMENT 6: TOGGLE SPARKS ═══
+function spawnToggleSparks(toggleEl) {
+  const rect = toggleEl.getBoundingClientRect();
+  const cx = rect.left + rect.width/2 - winRect.left;
+  const cy = rect.top + rect.height/2 - winRect.top;
+  const sparkColors = ['#f0c048','#e87830','#d4a032','#f0e068'];
+  for (let i = 0; i < 5; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.8 + Math.random() * 1.5;
+    sparks.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 0.5 + Math.random() * 1,
+      color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
+      life: 1,
+    });
+  }
+}
+
+// Wire toggle sparks + ticker into existing toggle handlers
+const toggleLabels = {
+  togSptRst: 'SPT Auto-Restart', togSptAs: 'SPT Auto-Start',
+  togHlRst: 'HL Auto-Restart', togHlAs: 'HL Auto-Start',
+  togTray: 'Minimize to Tray', togStartHidden: 'Server Hidden',
+  togHlHidden: 'Headless Hidden'
+};
+document.querySelectorAll('.toggle').forEach(tog => {
+  tog.addEventListener('click', function() {
+    SoundEngine.init();
+    SoundEngine.play('click');
+    spawnToggleSparks(this);
+    const lbl = toggleLabels[this.id] || 'Setting';
+    tickerLog(lbl + ' toggled', 'var(--amber)');
+  });
+});
+
+// ═══ ENHANCEMENT 6: SLIDER GLOW TRAIL ═══
+document.querySelectorAll('.slider-wrap').forEach(wrap => {
+  wrap.addEventListener('mousedown', () => wrap.classList.add('slider-active'));
+});
+document.addEventListener('mouseup', () => {
+  document.querySelectorAll('.slider-wrap.slider-active').forEach(w => w.classList.remove('slider-active'));
+});
+
+// ═══ ENHANCEMENT 6: BUTTON AFTERGLOW ═══
+document.querySelectorAll('.btn,.abtn,.bb-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    SoundEngine.init();
+    SoundEngine.play('click');
+    this.classList.remove('btn-afterglow');
+    // Force reflow to restart animation
+    void this.offsetWidth;
+    // Set color-specific glow
+    let shadow = '0 0 14px var(--amber-glow)';
+    if (this.classList.contains('btn--start') || this.classList.contains('abtn--save'))
+      shadow = '0 0 14px var(--green-glow), 0 0 28px rgba(76,175,80,0.15)';
+    else if (this.classList.contains('btn--stop') || this.classList.contains('abtn--clear') || this.classList.contains('bb-btn--quit'))
+      shadow = '0 0 14px var(--red-glow), 0 0 28px rgba(231,76,60,0.15)';
+    this.style.setProperty('--ag-shadow', shadow);
+    this.classList.add('btn-afterglow');
+    this.addEventListener('animationend', () => this.classList.remove('btn-afterglow'), { once: true });
+  });
+});
+
+// ═══ HOOK INTO updateState FOR ALL ENHANCEMENTS ═══
+const _origUpdateState = window.updateState;
+window.updateState = function(s) {
+  // Call original
+  _origUpdateState(s);
+
+  const isConnected = s.connection.status === 'connected';
+
+  // ── Enhancement 1: Sound state transitions ──
+  if (state.sptRunning && !prevSptRunning) { SoundEngine.play('start'); tickerLog('SPT Server started', 'var(--green-bright)'); }
+  if (!state.sptRunning && prevSptRunning) { SoundEngine.play('stop'); tickerLog('SPT Server stopped', 'var(--red-bright)'); }
+  if (state.hlRunning && !prevHlRunning) { SoundEngine.play('start'); tickerLog('Headless started', 'var(--green-bright)'); }
+  if (!state.hlRunning && prevHlRunning) { SoundEngine.play('stop'); tickerLog('Headless stopped', 'var(--red-bright)'); }
+  if (isConnected && !prevConnected) { tickerLog('Connection established', 'var(--green-bright)'); }
+  if (!isConnected && prevConnected) { tickerLog('Connection lost', 'var(--red-bright)'); }
+
+  // Crash event
+  if (s.crashEvent) {
+    SoundEngine.play('alert');
+    const which = s.crashEvent === 'spt' ? 'SPT Server' : s.crashEvent === 'headless' ? 'Headless' : 'Process';
+    tickerLog(which + ' crashed — auto-restart triggered', 'var(--red-bright)');
+  }
+
+  // Drone: on when both services running
+  SoundEngine.setDrone(state.sptRunning && state.hlRunning);
+
+  // ── Enhancement 7: Heartbeat ──
+  hbConnected = isConnected;
+  if (isConnected) heartbeatBeat();
+
+  // ── Enhancement 2: Panel sweep detection ──
+  const sptPanel = document.getElementById('panelSPT');
+  const hlPanel = document.getElementById('panelHL');
+  if (sptPanel.className !== prevSptPanelClass) {
+    triggerPanelSweep(sptPanel, sptPanel.className);
+    prevSptPanelClass = sptPanel.className;
+  }
+  if (hlPanel.className !== prevHlPanelClass) {
+    triggerPanelSweep(hlPanel, hlPanel.className);
+    prevHlPanelClass = hlPanel.className;
+  }
+
+  // ── Enhancement 4: Dynamic background on wolf state change ──
+  if (state.wolfState !== prevWolfState) {
+    prevWolfState = state.wolfState;
+    drawBgReactive();
+  }
+
+  // Update previous state
+  prevSptRunning = state.sptRunning;
+  prevHlRunning = state.hlRunning;
+  prevConnected = isConnected;
+};
+
+// ═══ OVERRIDE drawBg to use reactive version ═══
+// Replace the static drawBg with our reactive one
+drawBg = drawBgReactive;
+
+// Initial draw with reactive bg
+drawBgReactive();
 
 // Init
 updateWolfState();
