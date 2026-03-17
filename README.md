@@ -7,12 +7,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-c8aa6e.svg)](LICENSE)
 [![SPT](https://img.shields.io/badge/SPT-4.0.x-c8aa6e.svg)]()
 [![FIKA](https://img.shields.io/badge/FIKA-Compatible-4a7c59.svg)]()
+[![Version](https://img.shields.io/badge/v2.0.0-c8aa6e.svg)](https://github.com/ZSlayerHQ/ZSlayerWatchdog/releases)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512bd4.svg)]()
-[![WPF](https://img.shields.io/badge/WPF-Desktop-blue.svg)]()
+[![WebView2](https://img.shields.io/badge/WebView2-Desktop-blue.svg)]()
 
 ---
 
-A lightweight WPF desktop application that manages your SPT server and FIKA headless client processes. Auto-start, auto-restart on crash, system tray support, and a built-in HTTP API — all wrapped in a dark-themed UI that matches the [ZSlayer Command Center](https://github.com/ZSlayerHQ/ZSlayerCommandCenter).
+A desktop application with a WebView2 HTML frontend that manages your SPT server and FIKA headless client processes. Auto-start, auto-restart on crash, WebSocket communication with the Command Center, token-based authentication, and a custom animated wolf head mascot — all in a dark-themed UI matching the [ZSlayer Command Center](https://github.com/ZSlayerHQ/ZSlayerCommandCenter).
 
 [Discord](https://discord.gg/ZSlayerHQ) | [YouTube](https://www.youtube.com/@ZSlayerHQ-ImBenCole)
 
@@ -22,17 +23,33 @@ A lightweight WPF desktop application that manages your SPT server and FIKA head
 
 ## Features
 
+### Process Management
 - **Auto-Start** — launch the SPT server and headless client automatically on startup with configurable delays
 - **Auto-Restart** — detect crashes and restart processes automatically
 - **Manual Controls** — Start / Stop / Restart buttons for both server and headless
 - **Session Timeout** — configurable session timeout slider (1–30 minutes)
 - **Restart After Raids** — auto-restart headless after N raids (0–10, 0 = disabled)
-- **Crash Tracking** — crash counter displayed per process
+- **Crash Tracking** — restart and crash counters displayed per process
+- **Readiness Detection** — HTTP health check for server readiness, log polling for headless readiness with failure state
+- **External Process Detection** — detects externally-launched processes and gates headless start on server ready
+- **Console Visibility** — toggle server/headless console window visibility (Server Hidden, Headless Hidden)
+
+### Communication & Security
+- **WebSocket Client** — real-time WebSocket connection to the Command Center server (replaces old HTTP API)
+- **Token Authentication** — auto-discovers auth token from `watchdog-token.txt`, 4001 rejection handling, command whitelist
+- **Security Card** — UI panel for token management with auth-aware status bar
+
+### UI & Visuals
+- **WebView2 Frontend** — full HTML/CSS/JS UI rendered via WebView2, no XAML
+- **Wolf Head Mascot** — low-poly 3D wolf head with idle animations (blinking, sniffing, ear flicks, head tilt, breathing)
+- **Boot Sound** — synthesized 4-phase boot sound synced to wolf animation with eye burst effects, mute persisted in config
 - **System Tray** — minimize to tray option, dark-themed context menu with quick actions
-- **Toggle Switches** — all boolean settings are interactive toggle switches matching the CC web UI style
+- **Auto-Detecting Deployment** — remote headless support with automatic deployment mode detection
+- **Shutdown Confirm** — dialog confirmation before stopping processes
+
+### General
 - **Config Persistence** — all settings saved to the CC mod's `config.json` with debounced writes
 - **Update Checker** — checks GitHub for new releases on startup
-- **HTTP API** — built-in REST API for remote status queries and control
 - **Open Command Center** — one-click button to open the CC web panel in your browser
 
 ---
@@ -48,7 +65,9 @@ SPT 2026 Headless/
 │   ├── ZSlayerWatchdog.dll
 │   ├── ZSlayerWatchdog.deps.json
 │   ├── ZSlayerWatchdog.runtimeconfig.json
-│   └── app.ico
+│   ├── watchdog-ui.html
+│   ├── app.ico
+│   └── runtimes/
 └── SPT/
     ├── SPT.Server.exe
     └── user/
@@ -64,29 +83,7 @@ Run `ZSlayerWatchdog.exe`. It automatically discovers `SPT.Server.exe` and reads
 
 ## UI Layout
 
-```
-┌──────────────────────────────────────────────────────┐
-│ ZSLAYER — WATCHDOG                    v2.4.0   — ✕   │
-├──────────────────────────┬───────────────────────────┤
-│ 🖥 SPT SERVER    ● Run  │ 🖥 HEADLESS      ● Run   │
-│                          │                           │
-│ UPTIME  PID  AUTO-RST   │ UPTIME  PID    AUTO-RST   │
-│ 5h42m  3568  [===]      │ 5h41m  2593   [===]       │
-│              AUTO-START  │                           │
-│              [===]       │ AUTO-START  DELAY  PROFILE│
-│                          │ [===]       30s    🤖     │
-│ SESSION TIMEOUT   5 min  │                           │
-│ ═══●═════════════════    │ RESTART AFTER RAIDS    3  │
-│                          │ ═══●══════════════════    │
-│ CRASHES TODAY            │                           │
-│ 0                        │ CRASHES TODAY             │
-│                          │ 0                         │
-│    [Start][Stop][Rstrt]  │    [Start][Stop][Rstrt]   │
-├──────────────────────────┴───────────────────────────┤
-│ API: http://127.0.0.1:6971 │ MIN→TRAY [=]           │
-│              [Open Command Center]            [Quit] │
-└──────────────────────────────────────────────────────┘
-```
+The UI is a WebView2-rendered HTML frontend featuring a low-poly wolf head mascot flanked by server and headless status cards, with process controls, sliders, and toggle switches in a dark-themed layout matching the Command Center.
 
 ---
 
@@ -134,19 +131,16 @@ When disabled:
 
 ---
 
-## HTTP API
+## Communication
 
-The watchdog exposes a REST API on the configured port (default `6971`).
+The watchdog connects to the Command Center server via WebSocket for real-time bidirectional communication. Authentication uses a shared token (`watchdog-token.txt`) with automatic discovery.
 
-| Method | Endpoint | Description |
-|:-------|:---------|:------------|
-| `GET` | `/watchdog/status` | Server + headless status, PIDs, uptime |
-| `POST` | `/watchdog/server/start` | Start the SPT server |
-| `POST` | `/watchdog/server/stop` | Stop the SPT server |
-| `POST` | `/watchdog/server/restart` | Restart the SPT server |
-| `POST` | `/watchdog/headless/start` | Start the headless client |
-| `POST` | `/watchdog/headless/stop` | Stop the headless client |
-| `POST` | `/watchdog/headless/restart` | Restart the headless client |
+| Feature | Description |
+|:--------|:------------|
+| **WebSocket** | Persistent connection to CC server for status updates and remote commands |
+| **Token Auth** | Shared secret token with 4001 rejection handling |
+| **Command Whitelist** | Only authorized commands accepted from the server |
+| **Auto-Reconnect** | Automatic reconnection on connection loss |
 
 ---
 
@@ -156,7 +150,7 @@ The watchdog exposes a REST API on the configured port (default `6971`).
 |:------------|:--------|
 | **SPT** | 4.0.x |
 | **.NET Runtime** | 9.0 (desktop runtime) |
-| **ZSlayer Command Center** | 2.3+ (for config file) |
+| **ZSlayer Command Center** | 2.12+ (for config file + WebSocket) |
 | **OS** | Windows 10/11 |
 
 ---
