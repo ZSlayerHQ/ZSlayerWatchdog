@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _saveTimer;
     private int _attachScanCounter;
     private int _statusSendCounter;
+    private Microsoft.Web.WebView2.Wpf.WebView2 webView = null!;
     private WinForms.NotifyIcon _trayIcon = null!;
     private WinForms.ContextMenuStrip _trayMenu = null!;
     private bool _quitting;
@@ -58,6 +59,7 @@ public partial class MainWindow : Window
         _lastHdlCrashes = new int[headlessManagers.Count];
 
         InitializeComponent();
+        CreateWebView();
         InitializeWebView();
 
         BuildTrayIcon();
@@ -75,12 +77,37 @@ public partial class MainWindow : Window
         ScheduleAutoStart();
     }
 
+    // ── WebView2 Creation ──────────────────────────────────────
+    // WebView2 cannot use a network drive for its user data folder.
+    // Create the control programmatically with a local %LOCALAPPDATA% path
+    // instead of declaring it in XAML (which uses the exe directory by default).
+    private void CreateWebView()
+    {
+        var userDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ZSlayerWatchdog", "WebView2");
+
+        webView = new Microsoft.Web.WebView2.Wpf.WebView2
+        {
+            CreationProperties = new Microsoft.Web.WebView2.Wpf.CoreWebView2CreationProperties
+            {
+                UserDataFolder = userDataFolder
+            },
+            DefaultBackgroundColor = System.Drawing.Color.Transparent
+        };
+        webView.NavigationCompleted += WebView_NavigationCompleted;
+        rootGrid.Children.Add(webView);
+    }
+
     // ── WebView2 Initialization ─────────────────────────────
     private async void InitializeWebView()
     {
         try
         {
-            var env = await CoreWebView2Environment.CreateAsync();
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ZSlayerWatchdog", "WebView2");
+            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await webView.EnsureCoreWebView2Async(env);
 
             webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
@@ -704,18 +731,21 @@ public partial class MainWindow : Window
 
         _quitting = true;
 
-        _pollTimer.Stop();
+        _pollTimer?.Stop();
         // Flush any pending debounced save before shutting down
         _saveTimer?.Stop();
         SaveConfig();
-        _connection.Stop();
+        _connection?.Stop();
 
-        if (_canManageHeadless)
+        if (_canManageHeadless && _headlessManagers != null)
             foreach (var m in _headlessManagers) if (m.IsRunning) m.Stop();
-        if (_canManageServer && _server.IsRunning) _server.Stop();
+        if (_canManageServer && _server != null && _server.IsRunning) _server.Stop();
 
-        _trayIcon.Visible = false;
-        _trayIcon.Dispose();
+        if (_trayIcon != null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+        }
 
         base.OnClosing(e);
     }

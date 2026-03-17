@@ -9,6 +9,25 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Global unhandled exception handler to surface crashes
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            var ex = args.ExceptionObject as Exception;
+            System.Windows.MessageBox.Show(
+                $"Fatal error:\n\n{ex?.Message}\n\n{ex?.StackTrace}",
+                "ZSlayer Watchdog — Crash", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        };
+        DispatcherUnhandledException += (_, args) =>
+        {
+            System.Windows.MessageBox.Show(
+                $"UI error:\n\n{args.Exception.Message}\n\n{args.Exception.StackTrace}",
+                "ZSlayer Watchdog — Crash", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            args.Handled = true;
+        };
+
+        try
+        {
+
         var watchdogConfigPath = Path.Combine(AppContext.BaseDirectory, "watchdog-config.json");
         var watchdogConfig = LoadWatchdogConfig(watchdogConfigPath);
 
@@ -95,6 +114,15 @@ public partial class App : System.Windows.Application
             serverManager, headlessManagers, connection,
             canManageServer, canManageHeadless);
         mainWindow.Show();
+
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Startup failed:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                "ZSlayer Watchdog — Startup Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     private static string? DiscoverSptRoot(WatchdogIdentityConfig wdConfig)

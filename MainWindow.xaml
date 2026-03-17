@@ -1,7 +1,6 @@
 <Window x:Class="ZSlayerCommandCenter.Launcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         WindowStyle="None" AllowsTransparency="False"
         Background="#0c0a08"
         Width="890" Height="740" ResizeMode="NoResize"
@@ -9,10 +8,7 @@
         Title="ZSLAYER — WATCHDOG"
         Icon="app.ico">
 
-    <Grid>
-        <wv2:WebView2 x:Name="webView"
-                      DefaultBackgroundColor="Transparent"
-                      NavigationCompleted="WebView_NavigationCompleted" />
-    </Grid>
+    <Grid x:Name="rootGrid" />
+
 
 </Window>
