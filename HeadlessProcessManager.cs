@@ -51,6 +51,12 @@ public class HeadlessProcessManager
     private string _workingDir = "";
     private bool _available;
     private bool _stopping;
+
+    /// <summary>Unique identifier for this headless instance (maps to HeadlessClientConfig.Id).</summary>
+    public string InstanceId { get; set; } = "";
+
+    /// <summary>Display name for this headless instance.</summary>
+    public string InstanceName { get; set; } = "Headless";
     private CancellationTokenSource? _autoStartCts;
     private CancellationTokenSource? _rarCts;
     private CancellationTokenSource? _readinessCts;
@@ -461,6 +467,8 @@ public class HeadlessProcessManager
 
         return new HeadlessStatusDto
         {
+            InstanceId = InstanceId,
+            InstanceName = InstanceName,
             Available = _available,
             Running = running,
             Pid = running ? _process?.Id : null,
@@ -781,6 +789,12 @@ public class HeadlessProcessManager
 
 public class HeadlessStatusDto
 {
+    [JsonPropertyName("instanceId")]
+    public string InstanceId { get; set; } = "";
+
+    [JsonPropertyName("instanceName")]
+    public string InstanceName { get; set; } = "";
+
     [JsonPropertyName("available")]
     public bool Available { get; set; }
 

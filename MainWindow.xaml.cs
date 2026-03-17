@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private readonly string _watchdogConfigPath;
     private readonly string? _sptRoot;
     private readonly ServerProcessManager _server;
-    private readonly HeadlessProcessManager _headless;
+    private readonly List<HeadlessProcessManager> _headlessManagers;
     private readonly CommandCenterConnection _connection;
     private readonly bool _canManageServer;
     private readonly bool _canManageHeadless;
@@ -36,12 +36,12 @@ public partial class MainWindow : Window
     private bool _webViewReady;
     private bool _pendingCrashEvent;
     private int _lastSvrCrashes;
-    private int _lastHdlCrashes;
+    private int[] _lastHdlCrashes = [];
 
     public MainWindow(WatchdogAppConfig config, string configPath,
                       WatchdogIdentityConfig watchdogConfig, string watchdogConfigPath,
                       string? sptRoot,
-                      ServerProcessManager server, HeadlessProcessManager headless,
+                      ServerProcessManager server, List<HeadlessProcessManager> headlessManagers,
                       CommandCenterConnection connection,
                       bool canManageServer = true, bool canManageHeadless = true)
     {
@@ -51,10 +51,11 @@ public partial class MainWindow : Window
         _watchdogConfigPath = watchdogConfigPath;
         _sptRoot = sptRoot;
         _server = server;
-        _headless = headless;
+        _headlessManagers = headlessManagers;
         _connection = connection;
         _canManageServer = canManageServer;
         _canManageHeadless = canManageHeadless;
+        _lastHdlCrashes = new int[headlessManagers.Count];
 
         InitializeComponent();
         InitializeWebView();
@@ -118,9 +119,38 @@ public partial class MainWindow : Window
         try
         {
             var svr = _server.GetStatus();
-            var hdl = _headless.GetStatus();
             var connState = _connection.ConnectionState;
             var stats = SystemStats.Get();
+
+            // Build per-instance headless status array
+            var hlInstances = _headlessManagers.Select((m, idx) =>
+            {
+                var hc = idx < _watchdogConfig.HeadlessClients.Count ? _watchdogConfig.HeadlessClients[idx] : null;
+                var s = m.GetStatus();
+                return new
+                {
+                    instanceId = m.InstanceId,
+                    instanceName = m.InstanceName,
+                    running = s.Running,
+                    ready = m.HeadlessReady,
+                    startupFailed = m.StartupFailed,
+                    waitingForServer = m.WaitingForServer,
+                    uptime = s.Running ? s.Uptime : "--",
+                    pid = s.Running ? (s.Pid?.ToString() ?? "--") : "--",
+                    autoRestart = hc?.AutoRestart ?? s.AutoRestart,
+                    autoStart = hc?.AutoStart ?? s.AutoStart,
+                    rarCount = hc?.RestartAfterRaids ?? 0,
+                    crashesToday = s.RestartCount,
+                    showConsole = _config.Watchdog.ShowHeadlessConsole,
+                    profileId = s.ProfileId,
+                    profileName = s.ProfileName
+                };
+            }).ToArray();
+
+            // Legacy single-headless compat: first instance
+            var first = _headlessManagers.Count > 0 ? _headlessManagers[0] : null;
+            var firstStatus = first?.GetStatus();
+            var firstHc = _watchdogConfig.HeadlessClients.Count > 0 ? _watchdogConfig.HeadlessClients[0] : null;
 
             var state = new
             {
@@ -136,22 +166,23 @@ public partial class MainWindow : Window
                     crashesToday = svr.RestartCount,
                     startHidden = _config.Watchdog.StartHidden
                 },
-                headless = new
+                headless = first != null ? new
                 {
-                    running = hdl.Running,
-                    ready = _headless.HeadlessReady,
-                    startupFailed = _headless.StartupFailed,
-                    waitingForServer = _headless.WaitingForServer,
-                    uptime = hdl.Running ? hdl.Uptime : "--",
-                    pid = hdl.Running ? (hdl.Pid?.ToString() ?? "--") : "--",
-                    autoRestart = _config.Headless.AutoRestart,
-                    autoStart = _config.Headless.AutoStart,
-                    rarCount = _config.Headless.RestartAfterRaids,
-                    crashesToday = hdl.RestartCount,
+                    running = firstStatus!.Running,
+                    ready = first.HeadlessReady,
+                    startupFailed = first.StartupFailed,
+                    waitingForServer = first.WaitingForServer,
+                    uptime = firstStatus.Running ? firstStatus.Uptime : "--",
+                    pid = firstStatus.Running ? (firstStatus.Pid?.ToString() ?? "--") : "--",
+                    autoRestart = firstHc?.AutoRestart ?? firstStatus.AutoRestart,
+                    autoStart = firstHc?.AutoStart ?? firstStatus.AutoStart,
+                    rarCount = firstHc?.RestartAfterRaids ?? 0,
+                    crashesToday = firstStatus.RestartCount,
                     showConsole = _config.Watchdog.ShowHeadlessConsole,
-                    profileId = hdl.ProfileId,
-                    profileName = hdl.ProfileName
-                },
+                    profileId = firstStatus.ProfileId,
+                    profileName = firstStatus.ProfileName
+                } : (object?)null,
+                headlessInstances = hlInstances,
                 connection = new
                 {
                     status = connState == CommandCenterConnection.State.Connected ? "connected" : "disconnected",
@@ -174,6 +205,14 @@ public partial class MainWindow : Window
                         (false, true) => "Headless Only",
                         (false, false) => "Monitor"
                     }
+                },
+                settings = new
+                {
+                    sptRootPath = _watchdogConfig.SptRootPath,
+                    sptRootResolved = _sptRoot ?? "",
+                    serverUrl = _watchdogConfig.ServerUrl,
+                    serverUrlResolved = _connection.ServerUrl,
+                    headlessClients = _watchdogConfig.HeadlessClients
                 },
                 minimizeToTray = _config.Watchdog.MinimizeToTray,
                 crashEvent = _pendingCrashEvent
@@ -211,24 +250,24 @@ public partial class MainWindow : Window
                     break;
                 case "spt_stop":
                     if (!_canManageServer) break;
-                    if (_headless.IsRunning) _headless.Stop();
+                    foreach (var m in _headlessManagers) if (m.IsRunning) m.Stop();
                     _server.Stop();
                     break;
                 case "spt_restart":
                     if (!_canManageServer) break;
-                    if (_headless.IsRunning) _headless.Stop();
+                    foreach (var m in _headlessManagers) if (m.IsRunning) m.Stop();
                     _server.Restart();
                     break;
 
-                // Headless controls
+                // Headless controls — legacy (first instance) or indexed (hl_start:0)
                 case "hl_start":
-                    _headless.Start();
+                    _headlessManagers.FirstOrDefault()?.Start();
                     break;
                 case "hl_stop":
-                    _headless.Stop();
+                    _headlessManagers.FirstOrDefault()?.Stop();
                     break;
                 case "hl_restart":
-                    _headless.Restart();
+                    _headlessManagers.FirstOrDefault()?.Restart();
                     break;
 
                 // Server toggles
@@ -241,25 +280,16 @@ public partial class MainWindow : Window
                     DebounceSaveConfig();
                     break;
 
-                // Headless toggles
+                // Headless toggles — first instance (legacy compat)
                 case "toggle_hl_autorst":
-                    _config.Headless.AutoRestart = !_config.Headless.AutoRestart;
-                    DebounceSaveConfig();
+                    ToggleHeadlessAutoRestart(0);
                     break;
                 case "toggle_hl_autostart":
-                    _config.Headless.AutoStart = !_config.Headless.AutoStart;
-                    if (_config.Headless.AutoStart)
-                        _headless.StartAutoStartTimer(() => _server.ServerReady);
-                    else
-                        _headless.CancelAutoStart();
-                    DebounceSaveConfig();
+                    ToggleHeadlessAutoStart(0);
                     break;
                 case "set_rar_count":
                     if (value.ValueKind == JsonValueKind.Number)
-                    {
-                        _config.Headless.RestartAfterRaids = Math.Clamp(value.GetInt32(), 0, 6);
-                        DebounceSaveConfig();
-                    }
+                        SetHeadlessRarCount(0, value.GetInt32());
                     break;
 
                 // Session timeout slider
@@ -273,7 +303,6 @@ public partial class MainWindow : Window
 
                 // Auth token
                 case "auth_show":
-                    // Handled client-side (toggles password visibility)
                     break;
                 case "auth_save":
                     if (value.ValueKind == JsonValueKind.String)
@@ -291,7 +320,7 @@ public partial class MainWindow : Window
                 // Sound
                 case "play_boot":
                     BootSound.Play();
-                    return; // skip PushStateToUI
+                    return;
                 case "toggle_mute":
                     _watchdogConfig.Muted = !_watchdogConfig.Muted;
                     SaveWatchdogConfig();
@@ -306,16 +335,15 @@ public partial class MainWindow : Window
                 // Console window toggles
                 case "toggle_start_hidden":
                     _config.Watchdog.StartHidden = !_config.Watchdog.StartHidden;
-                    // Apply to both managers (takes effect on next start/restart)
                     _server.SetConsoleVisible(!_config.Watchdog.StartHidden);
                     if (_config.Watchdog.StartHidden)
-                        _headless.SetConsoleVisible(false);
+                        foreach (var m in _headlessManagers) m.SetConsoleVisible(false);
                     DebounceSaveConfig();
                     break;
                 case "toggle_hl_console":
-                    // "Headless Hidden" toggle — ON means hidden, so invert for visibility
                     _config.Watchdog.ShowHeadlessConsole = !_config.Watchdog.ShowHeadlessConsole;
-                    _headless.SetConsoleVisible(_config.Watchdog.ShowHeadlessConsole);
+                    foreach (var m in _headlessManagers)
+                        m.SetConsoleVisible(_config.Watchdog.ShowHeadlessConsole);
                     DebounceSaveConfig();
                     break;
 
@@ -332,7 +360,7 @@ public partial class MainWindow : Window
                     break;
                 case "dragMove":
                     StartWindowDrag();
-                    return; // skip PushStateToUI for drag
+                    return;
                 case "toggleMaximize":
                     WindowState = WindowState == WindowState.Maximized
                         ? WindowState.Normal
@@ -344,6 +372,78 @@ public partial class MainWindow : Window
                     var ccUrl = _canManageServer ? _server.ServerUrl : _connection.ServerUrl;
                     Process.Start(new ProcessStartInfo($"{ccUrl}/zslayer/cc/")
                         { UseShellExecute = true });
+                    break;
+
+                // ── Settings panel actions ──
+                case "settings_save_spt_root":
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        _watchdogConfig.SptRootPath = value.GetString()?.Trim() ?? "";
+                        SaveWatchdogConfig();
+                    }
+                    break;
+                case "settings_save_server_url":
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        _watchdogConfig.ServerUrl = value.GetString()?.Trim() ?? "";
+                        SaveWatchdogConfig();
+                    }
+                    break;
+                case "settings_add_headless":
+                {
+                    var newIdx = _watchdogConfig.HeadlessClients.Count + 1;
+                    var newHc = new HeadlessClientConfig { Name = $"Headless {newIdx}" };
+                    _watchdogConfig.HeadlessClients.Add(newHc);
+                    SaveWatchdogConfig();
+                    // Note: new manager won't be active until restart
+                    break;
+                }
+                case "settings_remove_headless":
+                    if (value.ValueKind == JsonValueKind.String)
+                    {
+                        var removeId = value.GetString() ?? "";
+                        _watchdogConfig.HeadlessClients.RemoveAll(c => c.Id == removeId);
+                        SaveWatchdogConfig();
+                    }
+                    break;
+                case "settings_save_headless":
+                    if (value.ValueKind == JsonValueKind.Object)
+                    {
+                        var hcId = value.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
+                        var hc = _watchdogConfig.HeadlessClients.FirstOrDefault(c => c.Id == hcId);
+                        if (hc != null)
+                        {
+                            if (value.TryGetProperty("name", out var np)) hc.Name = np.GetString() ?? hc.Name;
+                            if (value.TryGetProperty("exePath", out var ep)) hc.ExePath = ep.GetString() ?? "";
+                            if (value.TryGetProperty("profileId", out var pp)) hc.ProfileId = pp.GetString() ?? "";
+                            if (value.TryGetProperty("backendUrl", out var bp)) hc.BackendUrl = bp.GetString() ?? "";
+                            SaveWatchdogConfig();
+                        }
+                    }
+                    break;
+
+                default:
+                    // Indexed headless actions: hl_start:0, hl_stop:1, etc.
+                    if (action != null && action.Contains(':'))
+                    {
+                        var parts = action.Split(':', 2);
+                        var baseAction = parts[0];
+                        if (int.TryParse(parts[1], out var idx) && idx >= 0 && idx < _headlessManagers.Count)
+                        {
+                            switch (baseAction)
+                            {
+                                case "hl_start": _headlessManagers[idx].Start(); break;
+                                case "hl_stop": _headlessManagers[idx].Stop(); break;
+                                case "hl_restart": _headlessManagers[idx].Restart(); break;
+                                case "toggle_hl_autorst": ToggleHeadlessAutoRestart(idx); break;
+                                case "toggle_hl_autostart": ToggleHeadlessAutoStart(idx); break;
+                                case "set_rar_count":
+                                    if (value.ValueKind == JsonValueKind.Number)
+                                        SetHeadlessRarCount(idx, value.GetInt32());
+                                    break;
+                            }
+                        }
+                    }
                     break;
             }
 
@@ -386,6 +486,36 @@ public partial class MainWindow : Window
         base.OnStateChanged(e);
     }
 
+    // ── Headless toggle/setting helpers ──
+    private void ToggleHeadlessAutoRestart(int idx)
+    {
+        if (idx < 0 || idx >= _watchdogConfig.HeadlessClients.Count) return;
+        _watchdogConfig.HeadlessClients[idx].AutoRestart = !_watchdogConfig.HeadlessClients[idx].AutoRestart;
+        SaveWatchdogConfig();
+    }
+
+    private void ToggleHeadlessAutoStart(int idx)
+    {
+        if (idx < 0 || idx >= _watchdogConfig.HeadlessClients.Count) return;
+        var hc = _watchdogConfig.HeadlessClients[idx];
+        hc.AutoStart = !hc.AutoStart;
+        if (idx < _headlessManagers.Count)
+        {
+            if (hc.AutoStart)
+                _headlessManagers[idx].StartAutoStartTimer(() => _server.ServerReady);
+            else
+                _headlessManagers[idx].CancelAutoStart();
+        }
+        SaveWatchdogConfig();
+    }
+
+    private void SetHeadlessRarCount(int idx, int val)
+    {
+        if (idx < 0 || idx >= _watchdogConfig.HeadlessClients.Count) return;
+        _watchdogConfig.HeadlessClients[idx].RestartAfterRaids = Math.Clamp(val, 0, 6);
+        SaveWatchdogConfig();
+    }
+
     // ── Polling Timer ────────────────────────────────────────
     private void PollTimer_Tick(object? sender, EventArgs e)
     {
@@ -395,7 +525,7 @@ public partial class MainWindow : Window
         {
             _attachScanCounter = 0;
             _server.TryAttachExisting();
-            _headless.TryAttachExisting();
+            foreach (var m in _headlessManagers) m.TryAttachExisting();
         }
 
         // Send status to CC server every ~5s
@@ -410,20 +540,29 @@ public partial class MainWindow : Window
         PushStateToUI();
 
         var svr = _server.GetStatus();
-        var hdl = _headless.GetStatus();
 
         // Detect crashes by watching RestartCount increases
-        if (svr.RestartCount > _lastSvrCrashes || hdl.RestartCount > _lastHdlCrashes)
+        var hasCrash = svr.RestartCount > _lastSvrCrashes;
+        for (int i = 0; i < _headlessManagers.Count; i++)
+        {
+            var hdl = _headlessManagers[i].GetStatus();
+            var prev = i < _lastHdlCrashes.Length ? _lastHdlCrashes[i] : 0;
+            if (hdl.RestartCount > prev) hasCrash = true;
+        }
+
+        if (hasCrash)
         {
             _pendingCrashEvent = true;
             PushStateToUI();
         }
+
         _lastSvrCrashes = svr.RestartCount;
-        _lastHdlCrashes = hdl.RestartCount;
+        _lastHdlCrashes = _headlessManagers.Select(m => m.GetStatus().RestartCount).ToArray();
 
         var svrState = svr.Running ? "Running" : "Stopped";
-        var hdlState = hdl.Running ? "Running" : "Stopped";
-        _trayIcon.Text = $"ZSlayer Watchdog \u2014 Server: {svrState}, Headless: {hdlState}";
+        var anyHlRunning = _headlessManagers.Any(m => m.IsRunning);
+        var hlState = anyHlRunning ? "Running" : "Stopped";
+        _trayIcon.Text = $"ZSlayer Watchdog \u2014 Server: {svrState}, Headless: {hlState}";
     }
 
     // ── System Tray ──────────────────────────────────────────
@@ -444,13 +583,16 @@ public partial class MainWindow : Window
         {
             _trayMenu.Items.Add("Restart Server", null, (_, _) => Dispatcher.Invoke(() =>
             {
-                if (_headless.IsRunning) _headless.Stop();
+                foreach (var m in _headlessManagers) if (m.IsRunning) m.Stop();
                 _server.Restart();
             }));
         }
         if (_canManageHeadless)
         {
-            _trayMenu.Items.Add("Restart Headless", null, (_, _) => Dispatcher.Invoke(() => _headless.Restart()));
+            _trayMenu.Items.Add("Restart Headless", null, (_, _) => Dispatcher.Invoke(() =>
+            {
+                foreach (var m in _headlessManagers) m.Restart();
+            }));
         }
         _trayMenu.Items.Add("-");
         _trayMenu.Items.Add("Quit", null, (_, _) => Dispatcher.Invoke(() => { _quitting = true; Close(); }));
@@ -568,7 +710,8 @@ public partial class MainWindow : Window
         SaveConfig();
         _connection.Stop();
 
-        if (_canManageHeadless && _headless.IsRunning) _headless.Stop();
+        if (_canManageHeadless)
+            foreach (var m in _headlessManagers) if (m.IsRunning) m.Stop();
         if (_canManageServer && _server.IsRunning) _server.Stop();
 
         _trayIcon.Visible = false;
@@ -602,7 +745,7 @@ public partial class MainWindow : Window
         }
 
         if (_canManageHeadless)
-            _headless.StartAutoStartTimer(() => _server.ServerReady);
+            foreach (var m in _headlessManagers) m.StartAutoStartTimer(() => _server.ServerReady);
     }
 
     // ── Dark Context Menu Renderer (for tray) ────────────────

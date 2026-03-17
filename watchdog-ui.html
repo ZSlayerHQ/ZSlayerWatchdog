@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZSlayer — Watchdog v2.6.0</title>
+<title>ZSlayer — Watchdog v2.1.0</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
 
@@ -414,6 +414,65 @@ body{
 .sd-btn--confirm:hover{background:rgba(231,76,60,.12);border-color:var(--red);box-shadow:0 0 12px var(--red-glow);transform:translateY(-1px);}
 .sd-btn:active{transform:translateY(1px) scale(.97);}
 
+/* ═══ SETTINGS OVERLAY ═══ */
+.settings-overlay{position:absolute;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(5,4,10,0.8);backdrop-filter:blur(6px);animation:sdFadeIn .2s ease;}
+.settings-overlay.visible{display:flex;}
+.settings-card{width:520px;max-height:620px;background:var(--bg-elevated);border:1px solid var(--border-glow);border-radius:8px;padding:20px 24px 16px;animation:sdSlideUp .25s ease;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 1px rgba(200,180,140,.12);display:flex;flex-direction:column;overflow:hidden;}
+.settings-title{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--amber-bright);text-align:center;margin-bottom:16px;}
+.settings-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding-right:4px;}
+.settings-body::-webkit-scrollbar{width:4px;}
+.settings-body::-webkit-scrollbar-thumb{background:var(--border-glow);border-radius:2px;}
+.settings-section{display:flex;flex-direction:column;gap:8px;}
+.settings-section-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--amber-dim);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;}
+.settings-field{display:flex;flex-direction:column;gap:3px;}
+.sf-header{display:flex;align-items:center;justify-content:space-between;}
+.sf-label{font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text);font-weight:600;}
+.sf-badge{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;padding:1px 6px;border-radius:3px;border:1px solid;}
+.sf-badge--auto{color:var(--green-bright);border-color:rgba(76,175,80,0.3);background:rgba(76,175,80,0.08);}
+.sf-badge--manual{color:var(--amber-bright);border-color:rgba(212,160,50,0.3);background:rgba(212,160,50,0.08);}
+.sf-resolved{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sf-input-row{display:flex;gap:6px;}
+.sf-input{flex:1;height:26px;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:0 8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-bright);outline:none;transition:border-color .2s;}
+.sf-input:focus{border-color:var(--amber-dim);}
+.sf-input::placeholder{color:var(--text-muted);}
+.sf-clear{width:24px;height:26px;background:transparent;border:1px solid rgba(231,76,60,0.2);border-radius:4px;color:var(--red-bright);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.sf-clear:hover{background:rgba(231,76,60,0.1);border-color:var(--red);}
+
+/* Headless client card in settings */
+.hl-card{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;position:relative;}
+.hl-card-header{display:flex;align-items:center;justify-content:space-between;}
+.hl-card-name{flex:1;}
+.hl-card-name input{background:transparent;border:none;border-bottom:1px solid var(--border);font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;color:var(--amber-bright);outline:none;width:100%;padding:0 0 2px;}
+.hl-card-name input:focus{border-color:var(--amber);}
+.hl-card-remove{width:22px;height:22px;background:transparent;border:1px solid rgba(231,76,60,0.2);border-radius:4px;color:var(--red-bright);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;margin-left:8px;}
+.hl-card-remove:hover{background:rgba(231,76,60,0.15);border-color:var(--red);}
+.hl-card-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.hl-card-fields .settings-field{gap:2px;}
+.hl-card-fields .sf-label{font-size:10px;color:var(--text-dim);}
+.hl-card-fields .sf-input{height:24px;font-size:9px;}
+.hl-card-fields .settings-field.full-width{grid-column:1 / -1;}
+
+.settings-add-btn{width:100%;height:30px;background:transparent;border:1px dashed var(--border-glow);border-radius:6px;color:var(--amber-dim);font-family:'Orbitron',sans-serif;font-size:9px;font-weight:600;letter-spacing:1.5px;cursor:pointer;transition:all .2s;}
+.settings-add-btn:hover{border-color:var(--amber);color:var(--amber-bright);background:rgba(212,160,50,0.06);}
+
+.settings-restart-banner{display:none;margin-top:12px;padding:6px 12px;background:rgba(232,120,48,0.1);border:1px solid rgba(232,120,48,0.25);border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--ember);letter-spacing:1px;text-align:center;}
+.settings-restart-banner.visible{display:block;}
+
+.settings-footer{display:flex;justify-content:center;margin-top:14px;gap:10px;}
+
+/* ═══ HEADLESS TABS (multi-headless) ═══ */
+.hl-tabs{display:none;height:24px;gap:1px;margin-bottom:4px;}
+.hl-tabs.visible{display:flex;}
+.hl-tab{padding:0 12px;height:24px;background:var(--bg-card);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--text-dim);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px;-webkit-app-region:no-drag;app-region:no-drag;}
+.hl-tab:hover{color:var(--text);background:var(--bg-card-hover);}
+.hl-tab.active{color:var(--amber-bright);background:var(--bg-elevated);border-color:var(--border-glow);}
+.hl-tab-dot{width:5px;height:5px;border-radius:50%;background:var(--red);box-shadow:0 0 4px var(--red-glow);}
+.hl-tab-dot.running{background:var(--green-bright);box-shadow:0 0 4px var(--green-glow);}
+
+/* ═══ SETTINGS GEAR BUTTON ═══ */
+.tb-btn--settings{font-size:13px;opacity:0.6;transition:all .2s;}
+.tb-btn--settings:hover{opacity:1;color:var(--amber-bright);}
+
 /* ═══ HELP TOAST ═══ */
 .help{
   position:absolute;bottom:50px;left:50%;transform:translateX(-50%);z-index:50;
@@ -509,7 +568,8 @@ body{
       <span class="tb-name">ZSLAYER <span class="tb-sep">—</span> <b>WATCHDOG</b></span>
     </div>
     <div class="tb-right">
-      <span class="tb-ver">↑ v2.6.0</span>
+      <span class="tb-ver">↑ v2.1.0</span>
+      <button class="tb-btn tb-btn--settings" id="btnSettings" data-hover title="Settings">⚙</button>
       <div class="tb-controls">
       <button class="tb-btn" data-hover>—</button>
       <button class="tb-btn tb-btn--x" data-hover>×</button>
@@ -580,7 +640,8 @@ body{
         </div>
       </div>
 
-      <!-- HEADLESS -->
+      <!-- HEADLESS (multi-instance tabs) -->
+      <div class="hl-tabs" id="hlTabs"></div>
       <div class="panel stopped" id="panelHL">
         <div class="ph">
           <span class="ph-title"><span class="ph-icon">🖥</span> HEADLESS</span>
@@ -636,6 +697,54 @@ body{
       <div class="bb-right">
         <button class="bb-btn bb-btn--cmd" data-hover>OPEN COMMAND CENTER</button>
         <button class="bb-btn bb-btn--quit" data-hover>QUIT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings overlay -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-card">
+      <div class="settings-title">⚙ SETTINGS</div>
+      <div class="settings-body">
+        <!-- Section A: General -->
+        <div class="settings-section">
+          <div class="settings-section-title">General</div>
+          <div class="settings-field">
+            <div class="sf-header">
+              <span class="sf-label">SPT Root Path</span>
+              <span class="sf-badge sf-badge--auto" id="sfSptBadge">Auto</span>
+            </div>
+            <div class="sf-resolved" id="sfSptResolved">--</div>
+            <div class="sf-input-row">
+              <input class="sf-input" id="sfSptRoot" placeholder="Leave empty to auto-detect..." data-hover>
+              <button class="sf-clear" id="sfSptClear" data-hover title="Clear (revert to auto)">✕</button>
+            </div>
+          </div>
+          <div class="settings-field">
+            <div class="sf-header">
+              <span class="sf-label">Server URL</span>
+              <span class="sf-badge sf-badge--auto" id="sfUrlBadge">Auto</span>
+            </div>
+            <div class="sf-resolved" id="sfUrlResolved">--</div>
+            <div class="sf-input-row">
+              <input class="sf-input" id="sfServerUrl" placeholder="Leave empty to auto-detect..." data-hover>
+              <button class="sf-clear" id="sfUrlClear" data-hover title="Clear (revert to auto)">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section B: Headless Clients -->
+        <div class="settings-section">
+          <div class="settings-section-title">Headless Clients</div>
+          <div id="settingsHlList"></div>
+          <button class="settings-add-btn" id="btnAddHl" data-hover>+ ADD HEADLESS CLIENT</button>
+        </div>
+      </div>
+
+      <div class="settings-restart-banner" id="settingsRestartBanner">⚠ RESTART REQUIRED — Path/URL changes take effect after restart</div>
+
+      <div class="settings-footer">
+        <button class="sd-btn sd-btn--cancel" id="settingsClose" data-hover>CLOSE</button>
       </div>
     </div>
   </div>
@@ -3252,12 +3361,18 @@ document.querySelectorAll('.tb-btn').forEach(btn => {
 // ── Process control buttons ──
 document.querySelectorAll('[data-btn]').forEach(btn => {
   btn.addEventListener('click', () => {
+    const key = btn.getAttribute('data-btn');
     const map = {
       'spt-start':'spt_start','spt-stop':'spt_stop','spt-restart':'spt_restart',
       'hl-start':'hl_start','hl-stop':'hl_stop','hl-restart':'hl_restart'
     };
-    const action = map[btn.getAttribute('data-btn')];
-    if (action) send(action);
+    let action = map[key];
+    if (!action) return;
+    // For headless buttons, send indexed action: hl_start:0, hl_start:1, etc.
+    if (key.startsWith('hl-')) {
+      action = action + ':' + activeHlTab;
+    }
+    send(action);
   });
 });
 
@@ -3269,7 +3384,14 @@ const toggleActions = {
   togHlAs: 'toggle_hl_autostart'
 };
 Object.entries(toggleActions).forEach(([id, action]) => {
-  document.getElementById(id).addEventListener('click', () => send(action));
+  document.getElementById(id).addEventListener('click', () => {
+    // For headless toggles, send indexed action
+    if (id.startsWith('togHl')) {
+      send(action + ':' + activeHlTab);
+    } else {
+      send(action);
+    }
+  });
 });
 // Tray toggle — state pushed from C#
 document.getElementById('togTray').addEventListener('click', () => send('toggle_tray'));
@@ -3432,12 +3554,259 @@ document.getElementById('shutdownOverlay').addEventListener('click', (e) => {
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
-    send('set_rar_count', currentVal);
+    send('set_rar_count:' + activeHlTab, currentVal);
   });
 
   window._setRarValue = setVisual;
   window._rarDragging = () => dragging;
 })();
+
+// ═══ SETTINGS PANEL ═══
+let settingsOpen = false;
+let settingsInitialState = null;
+
+document.getElementById('btnSettings').addEventListener('click', () => {
+  settingsOpen = !settingsOpen;
+  const overlay = document.getElementById('settingsOverlay');
+  if (settingsOpen) {
+    overlay.classList.add('visible');
+    settingsInitialState = JSON.stringify(lastSettings || {});
+  } else {
+    overlay.classList.remove('visible');
+  }
+});
+
+document.getElementById('settingsClose').addEventListener('click', () => {
+  settingsOpen = false;
+  document.getElementById('settingsOverlay').classList.remove('visible');
+});
+
+document.getElementById('settingsOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    settingsOpen = false;
+    e.currentTarget.classList.remove('visible');
+  }
+});
+
+// Save SPT root on blur
+document.getElementById('sfSptRoot').addEventListener('change', function() {
+  send('settings_save_spt_root', this.value.trim());
+  checkRestartNeeded();
+});
+document.getElementById('sfSptClear').addEventListener('click', () => {
+  document.getElementById('sfSptRoot').value = '';
+  send('settings_save_spt_root', '');
+  checkRestartNeeded();
+});
+
+// Save server URL on blur
+document.getElementById('sfServerUrl').addEventListener('change', function() {
+  send('settings_save_server_url', this.value.trim());
+  checkRestartNeeded();
+});
+document.getElementById('sfUrlClear').addEventListener('click', () => {
+  document.getElementById('sfServerUrl').value = '';
+  send('settings_save_server_url', '');
+  checkRestartNeeded();
+});
+
+// Add headless client
+document.getElementById('btnAddHl').addEventListener('click', () => {
+  send('settings_add_headless');
+  checkRestartNeeded();
+});
+
+function checkRestartNeeded() {
+  const banner = document.getElementById('settingsRestartBanner');
+  banner.classList.add('visible');
+}
+
+let lastSettings = null;
+
+function renderSettingsHeadlessList(clients) {
+  const container = document.getElementById('settingsHlList');
+  container.innerHTML = '';
+  if (!clients || clients.length === 0) return;
+  clients.forEach((hc, idx) => {
+    const card = document.createElement('div');
+    card.className = 'hl-card';
+    card.innerHTML = `
+      <div class="hl-card-header">
+        <div class="hl-card-name"><input value="${esc(hc.name)}" data-field="name" data-id="${esc(hc.id)}" placeholder="Name..." data-hover></div>
+        ${clients.length > 1 ? `<button class="hl-card-remove" data-remove="${esc(hc.id)}" data-hover title="Remove this headless client">✕</button>` : ''}
+      </div>
+      <div class="hl-card-fields">
+        <div class="settings-field">
+          <span class="sf-label">Profile ID</span>
+          <input class="sf-input" value="${esc(hc.profileId)}" data-field="profileId" data-id="${esc(hc.id)}" placeholder="Required" data-hover>
+        </div>
+        <div class="settings-field">
+          <span class="sf-label">Backend URL</span>
+          <input class="sf-input" value="${esc(hc.backendUrl)}" data-field="backendUrl" data-id="${esc(hc.id)}" placeholder="Auto (server URL)" data-hover>
+        </div>
+        <div class="settings-field full-width">
+          <span class="sf-label">EXE Path</span>
+          <input class="sf-input" value="${esc(hc.exePath)}" data-field="exePath" data-id="${esc(hc.id)}" placeholder="Auto-detect from SPT root" data-hover>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Wire change handlers
+  container.querySelectorAll('input[data-id]').forEach(inp => {
+    inp.addEventListener('change', function() {
+      const id = this.dataset.id;
+      const field = this.dataset.field;
+      const val = this.value.trim();
+      send('settings_save_headless', { id, [field]: val });
+      if (field === 'exePath' || field === 'backendUrl') checkRestartNeeded();
+    });
+  });
+
+  // Wire remove buttons
+  container.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (confirm('Remove this headless client? (requires restart)')) {
+        send('settings_remove_headless', this.dataset.remove);
+        checkRestartNeeded();
+      }
+    });
+  });
+}
+
+function esc(s) { return (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+function updateSettingsPanel(s) {
+  if (!s.settings) return;
+  lastSettings = s.settings;
+
+  // SPT root
+  const sptInput = document.getElementById('sfSptRoot');
+  if (document.activeElement !== sptInput) sptInput.value = s.settings.sptRootPath || '';
+  document.getElementById('sfSptResolved').textContent = s.settings.sptRootResolved || '(not detected)';
+  const sptBadge = document.getElementById('sfSptBadge');
+  if (s.settings.sptRootPath) { sptBadge.textContent = 'Manual'; sptBadge.className = 'sf-badge sf-badge--manual'; }
+  else { sptBadge.textContent = 'Auto'; sptBadge.className = 'sf-badge sf-badge--auto'; }
+
+  // Server URL
+  const urlInput = document.getElementById('sfServerUrl');
+  if (document.activeElement !== urlInput) urlInput.value = s.settings.serverUrl || '';
+  document.getElementById('sfUrlResolved').textContent = s.settings.serverUrlResolved || '(not detected)';
+  const urlBadge = document.getElementById('sfUrlBadge');
+  if (s.settings.serverUrl) { urlBadge.textContent = 'Manual'; urlBadge.className = 'sf-badge sf-badge--manual'; }
+  else { urlBadge.textContent = 'Auto'; urlBadge.className = 'sf-badge sf-badge--auto'; }
+
+  // Headless clients list
+  renderSettingsHeadlessList(s.settings.headlessClients);
+}
+
+// ═══ MULTI-HEADLESS TABS ═══
+let activeHlTab = 0;
+
+function renderHlTabs(instances) {
+  const tabsEl = document.getElementById('hlTabs');
+  if (!instances || instances.length <= 1) {
+    tabsEl.classList.remove('visible');
+    activeHlTab = 0;
+    return;
+  }
+  tabsEl.classList.add('visible');
+  // Only rebuild if count changed
+  if (tabsEl.children.length !== instances.length) {
+    tabsEl.innerHTML = '';
+    instances.forEach((inst, idx) => {
+      const tab = document.createElement('div');
+      tab.className = 'hl-tab' + (idx === activeHlTab ? ' active' : '');
+      tab.dataset.idx = idx;
+      tab.innerHTML = `<span class="hl-tab-dot"></span>${esc(inst.instanceName)}`;
+      tab.addEventListener('click', () => {
+        activeHlTab = idx;
+        tabsEl.querySelectorAll('.hl-tab').forEach((t, i) => t.className = 'hl-tab' + (i === idx ? ' active' : ''));
+      });
+      tabsEl.appendChild(tab);
+    });
+  }
+  // Update tab states
+  tabsEl.querySelectorAll('.hl-tab').forEach((tab, idx) => {
+    tab.className = 'hl-tab' + (idx === activeHlTab ? ' active' : '');
+    const dot = tab.querySelector('.hl-tab-dot');
+    if (dot) dot.className = 'hl-tab-dot' + (instances[idx]?.running ? ' running' : '');
+  });
+}
+
+function updateHlPanel(inst, idx) {
+  if (!inst) return;
+
+  // Update existing panel elements with this instance's data
+  const hlPanel = document.getElementById('panelHL');
+  const hlBadge = document.getElementById('badgeHL');
+  const title = hlPanel.querySelector('.ph-title');
+  if (title) title.innerHTML = '<span class="ph-icon">🖥</span> ' + esc(inst.instanceName).toUpperCase();
+
+  if (inst.startupFailed && !inst.ready) {
+    hlPanel.className = 'panel failed';
+    hlBadge.className = 'badge badge--r';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Error';
+  } else if (!inst.running && inst.waitingForServer) {
+    hlPanel.className = 'panel starting';
+    hlBadge.className = 'badge badge--a';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Waiting for Server';
+  } else if (!inst.running) {
+    hlPanel.className = 'panel stopped';
+    hlBadge.className = 'badge badge--r';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Stopped';
+  } else if (!inst.ready) {
+    hlPanel.className = 'panel starting';
+    hlBadge.className = 'badge badge--a';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Starting';
+  } else {
+    hlPanel.className = 'panel running';
+    hlBadge.className = 'badge badge--g';
+    hlBadge.innerHTML = '<span class="badge-dot"></span>Ready';
+  }
+
+  const hlUp = document.getElementById('hlUp');
+  hlUp.textContent = inst.uptime;
+  hlUp.className = inst.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  const hlPid = document.getElementById('hlPid');
+  hlPid.textContent = inst.pid;
+  hlPid.className = inst.running ? 'stat-v' : 'stat-v stat-v--d';
+
+  document.getElementById('togHlRst').className = inst.autoRestart ? 'toggle on' : 'toggle';
+  document.getElementById('togHlAs').className = inst.autoStart ? 'toggle on' : 'toggle';
+
+  if (!window._rarDragging || !window._rarDragging()) {
+    if (window._setRarValue) window._setRarValue(inst.rarCount);
+  }
+
+  var profName = inst.profileName || '';
+  var profId = inst.profileId || '';
+  var profBtn = document.getElementById('hlProfileBtn');
+  var profRow = document.getElementById('hlProfileRow');
+  if (profName || profId) {
+    profBtn.textContent = profName || profId.substring(0, 12) + '...';
+    profBtn.title = profName ? profName + ' (' + profId + ')' : profId;
+    profRow.style.display = '';
+  } else {
+    profRow.style.display = 'none';
+  }
+
+  const hlCrash = document.getElementById('hlCrash');
+  hlCrash.textContent = inst.crashesToday;
+  hlCrash.className = inst.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
+
+  // HL button states — use indexed actions
+  document.querySelector('[data-btn="hl-start"]').className = 'btn btn--start' + (inst.running ? ' disabled' : '');
+  document.querySelector('[data-btn="hl-stop"]').className = 'btn btn--stop' + (!inst.running ? ' disabled' : '');
+  document.querySelector('[data-btn="hl-restart"]').className = 'btn btn--restart' + (!inst.running ? ' disabled' : '');
+
+  // Wire buttons to indexed instance
+  document.querySelector('[data-btn="hl-start"]').dataset.btn = 'hl-start';
+  document.querySelector('[data-btn="hl-stop"]').dataset.btn = 'hl-stop';
+  document.querySelector('[data-btn="hl-restart"]').dataset.btn = 'hl-restart';
+}
 
 // ── Sentinel label update ──
 function updateSentinelLabel() {
@@ -3501,73 +3870,24 @@ window.updateState = function(s) {
   document.querySelector('[data-btn="spt-stop"]').className = 'btn btn--stop' + (!s.spt.running ? ' disabled' : '');
   document.querySelector('[data-btn="spt-restart"]').className = 'btn btn--restart' + (!s.spt.running ? ' disabled' : '');
 
-  // ── Headless panel ──
-  state.hlRunning = s.headless.running;
-  const hlPanel = document.getElementById('panelHL');
-  const hlBadge = document.getElementById('badgeHL');
-  if (s.headless.startupFailed && !s.headless.ready) {
-    // Error state — process may or may not still be running
-    hlPanel.className = 'panel failed';
-    hlBadge.className = 'badge badge--r';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Error';
-  } else if (!s.headless.running && s.headless.waitingForServer) {
-    hlPanel.className = 'panel starting';
-    hlBadge.className = 'badge badge--a';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Waiting for Server';
-  } else if (!s.headless.running) {
-    hlPanel.className = 'panel stopped';
-    hlBadge.className = 'badge badge--r';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Stopped';
-  } else if (!s.headless.ready) {
-    hlPanel.className = 'panel starting';
-    hlBadge.className = 'badge badge--a';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Starting';
-  } else {
-    hlPanel.className = 'panel running';
-    hlBadge.className = 'badge badge--g';
-    hlBadge.innerHTML = '<span class="badge-dot"></span>Ready';
+  // ── Headless panel (multi-instance) ──
+  const hlInstances = s.headlessInstances || (s.headless ? [s.headless] : []);
+  const activeInst = hlInstances[activeHlTab] || hlInstances[0] || null;
+  state.hlRunning = hlInstances.some(i => i.running);
+
+  // Render tabs (only visible when >1 instance)
+  renderHlTabs(hlInstances);
+
+  // Update panel with active instance data
+  if (activeInst) {
+    updateHlPanel(activeInst, activeHlTab);
   }
 
-  const hlUp = document.getElementById('hlUp');
-  hlUp.textContent = s.headless.uptime;
-  hlUp.className = s.headless.running ? 'stat-v' : 'stat-v stat-v--d';
+  // Headless hidden toggle (shared across all instances)
+  if (s.headless) document.getElementById('togHlHidden').className = s.headless.showConsole ? 'toggle' : 'toggle on';
 
-  const hlPid = document.getElementById('hlPid');
-  hlPid.textContent = s.headless.pid;
-  hlPid.className = s.headless.running ? 'stat-v' : 'stat-v stat-v--d';
-
-  // Headless toggles
-  document.getElementById('togHlRst').className = s.headless.autoRestart ? 'toggle on' : 'toggle';
-  document.getElementById('togHlAs').className = s.headless.autoStart ? 'toggle on' : 'toggle';
-  document.getElementById('togHlHidden').className = s.headless.showConsole ? 'toggle' : 'toggle on';
-
-  // RAR slider (skip if user is dragging)
-  if (!window._rarDragging || !window._rarDragging()) {
-    if (window._setRarValue) window._setRarValue(s.headless.rarCount);
-  }
-
-  // Headless profile button
-  var profName = s.headless.profileName || '';
-  var profId = s.headless.profileId || '';
-  var profBtn = document.getElementById('hlProfileBtn');
-  var profRow = document.getElementById('hlProfileRow');
-  if (profName || profId) {
-    profBtn.textContent = profName || profId.substring(0, 12) + '...';
-    profBtn.title = profName ? profName + ' (' + profId + ')' : profId;
-    profRow.style.display = '';
-  } else {
-    profRow.style.display = 'none';
-  }
-
-  // Headless crashes
-  const hlCrash = document.getElementById('hlCrash');
-  hlCrash.textContent = s.headless.crashesToday;
-  hlCrash.className = s.headless.crashesToday > 0 ? 'crash-val nonzero' : 'crash-val zero';
-
-  // HL button states
-  document.querySelector('[data-btn="hl-start"]').className = 'btn btn--start' + (s.headless.running ? ' disabled' : '');
-  document.querySelector('[data-btn="hl-stop"]').className = 'btn btn--stop' + (!s.headless.running ? ' disabled' : '');
-  document.querySelector('[data-btn="hl-restart"]').className = 'btn btn--restart' + (!s.headless.running ? ' disabled' : '');
+  // Settings panel (only update when overlay is open, to avoid perf cost)
+  if (settingsOpen) updateSettingsPanel(s);
 
   // ── Connection status ──
   const bbStatus = document.getElementById('bbStatus');
@@ -3599,9 +3919,10 @@ window.updateState = function(s) {
   }
 
   // ── Wolf zone stats ──
-  const totalCrashes = s.spt.crashesToday + s.headless.crashesToday;
+  const hlCrashSum = hlInstances.reduce((sum, i) => sum + (i.crashesToday || 0), 0);
+  const totalCrashes = s.spt.crashesToday + hlCrashSum;
   state.sptCrashes = s.spt.crashesToday;
-  state.hlCrashes = s.headless.crashesToday;
+  state.hlCrashes = hlCrashSum;
   document.getElementById('wsCrash').textContent = totalCrashes;
   document.getElementById('wsCrash').className = totalCrashes > 0 ? 'ws-val ws-val--r' : 'ws-val ws-val--d';
 
@@ -3620,16 +3941,19 @@ window.updateState = function(s) {
   // ── Sentinel label — state-reactive 3D text ──
   const slEl = document.getElementById('sentinelLbl');
   const slTxt = document.getElementById('sentinelText');
+  const anyHlRunning = hlInstances.some(i => i.running);
+  const anyHlReady = hlInstances.some(i => i.ready);
+  const anyHlFailed = hlInstances.some(i => i.startupFailed && !i.running);
   if (state.alertActive) {
     slEl.className = 'sentinel-lbl sl--alert';
     slTxt.textContent = '⚠ THREAT DETECTED ⚠';
-  } else if (s.headless.startupFailed && !s.headless.running) {
+  } else if (anyHlFailed && !anyHlRunning) {
     slEl.className = 'sentinel-lbl sl--error';
     slTxt.textContent = '✕ STARTUP FAILED ✕';
-  } else if (s.spt.running && s.headless.running && s.headless.ready) {
+  } else if (s.spt.running && anyHlRunning && anyHlReady) {
     slEl.className = 'sentinel-lbl sl--nominal';
     slTxt.textContent = '◆ SYSTEMS NOMINAL ◆';
-  } else if (s.spt.running && s.headless.running) {
+  } else if (s.spt.running && anyHlRunning) {
     slEl.className = 'sentinel-lbl sl--loading';
     slTxt.textContent = '◆ HEADLESS LOADING ◆';
   } else if (s.spt.running && s.spt.ready) {
@@ -3638,7 +3962,7 @@ window.updateState = function(s) {
   } else if (s.spt.running) {
     slEl.className = 'sentinel-lbl sl--loading';
     slTxt.textContent = '◇ SERVER LOADING ◇';
-  } else if (s.headless.running) {
+  } else if (anyHlRunning) {
     slEl.className = 'sentinel-lbl sl--partial';
     slTxt.textContent = '◇ HEADLESS ONLY ◇';
   } else {

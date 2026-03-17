@@ -20,7 +20,7 @@ public class CommandCenterConnection : IDisposable
     private readonly string _watchdogName;
     private readonly WatchdogAppConfig _config;
     private readonly ServerProcessManager _server;
-    private readonly HeadlessProcessManager _headless;
+    private readonly List<HeadlessProcessManager> _headlessManagers;
     private readonly Action<string> _log;
     private readonly bool _canManageServer;
     private readonly bool _canManageHeadless;
@@ -36,7 +36,6 @@ public class CommandCenterConnection : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    private static readonly HashSet<string> ValidTargets = ["sptServer", "headlessClient"];
     private static readonly HashSet<string> ValidActions = ["start", "stop", "restart"];
 
     public State ConnectionState { get; private set; } = State.Disconnected;
@@ -53,7 +52,7 @@ public class CommandCenterConnection : IDisposable
         string token,
         WatchdogAppConfig config,
         ServerProcessManager server,
-        HeadlessProcessManager headless,
+        List<HeadlessProcessManager> headlessManagers,
         Action<string> log,
         bool canManageServer = true,
         bool canManageHeadless = true)
@@ -80,7 +79,7 @@ public class CommandCenterConnection : IDisposable
         _watchdogName = watchdogName;
         _config = config;
         _server = server;
-        _headless = headless;
+        _headlessManagers = headlessManagers;
         _log = log;
         _canManageServer = canManageServer;
         _canManageHeadless = canManageHeadless;
@@ -117,8 +116,31 @@ public class CommandCenterConnection : IDisposable
         try
         {
             var svr = _server.GetStatus();
-            var hdl = _headless.GetStatus();
             var (cpu, ramUsed, ramTotal) = SystemStats.Get();
+
+            // Build headless clients array
+            var hlClients = _headlessManagers.Select(m =>
+            {
+                var s = m.GetStatus();
+                return new
+                {
+                    instanceId = s.InstanceId,
+                    instanceName = s.InstanceName,
+                    running = s.Running,
+                    pid = s.Pid,
+                    uptime = s.Uptime,
+                    crashes = s.RestartCount,
+                    autoRestart = s.AutoRestart,
+                    autoStart = s.AutoStart,
+                    profile = s.ProfileName,
+                    restartAfterRaids = s.AutoStartDelaySec,
+                    startDelay = $"{s.AutoStartDelaySec}s"
+                };
+            }).ToArray();
+
+            // Legacy: first headless for backwards compat
+            var first = _headlessManagers.Count > 0 ? _headlessManagers[0] : null;
+            var firstStatus = first?.GetStatus();
 
             var msg = new
             {
@@ -133,18 +155,19 @@ public class CommandCenterConnection : IDisposable
                     autoRestart = svr.AutoRestartOnCrash,
                     autoStart = _config.Watchdog.AutoStartServer
                 },
-                headlessClient = new
+                headlessClient = firstStatus != null ? new
                 {
-                    running = hdl.Running,
-                    pid = hdl.Pid,
-                    uptime = hdl.Uptime,
-                    crashes = hdl.RestartCount,
-                    autoRestart = hdl.AutoRestart,
-                    autoStart = hdl.AutoStart,
-                    profile = hdl.ProfileName,
-                    restartAfterRaids = _config.Headless.RestartAfterRaids,
-                    startDelay = $"{_config.Headless.AutoStartDelaySec}s"
-                },
+                    running = firstStatus.Running,
+                    pid = firstStatus.Pid,
+                    uptime = firstStatus.Uptime,
+                    crashes = firstStatus.RestartCount,
+                    autoRestart = firstStatus.AutoRestart,
+                    autoStart = firstStatus.AutoStart,
+                    profile = firstStatus.ProfileName,
+                    restartAfterRaids = firstStatus.AutoStartDelaySec,
+                    startDelay = $"{firstStatus.AutoStartDelaySec}s"
+                } : null,
+                headlessClients = hlClients,
                 system = new
                 {
                     cpuPercent = cpu,
@@ -275,15 +298,17 @@ public class CommandCenterConnection : IDisposable
             if (type == "raidEnd")
             {
                 var map = root.TryGetProperty("map", out var m) ? m.GetString() ?? "" : "";
-                _log($"Raid ended on {map} — checking RAR...");
-                _headless.ScheduleRaidRestart();
+                _log($"Raid ended on {map} — checking RAR on all headless instances...");
+                foreach (var mgr in _headlessManagers)
+                    mgr.ScheduleRaidRestart();
                 return;
             }
 
             if (type == "headless-hello")
             {
                 var sourceId = root.TryGetProperty("sourceId", out var s) ? s.GetString() ?? "" : "";
-                _headless.NotifyRemoteReady(sourceId);
+                foreach (var mgr in _headlessManagers)
+                    mgr.NotifyRemoteReady(sourceId);
                 return;
             }
 
@@ -292,8 +317,9 @@ public class CommandCenterConnection : IDisposable
             var target = root.TryGetProperty("target", out var tgt) ? tgt.GetString() ?? "" : "";
             var action = root.TryGetProperty("action", out var act) ? act.GetString() ?? "" : "";
 
-            // Validate command against whitelist
-            if (!ValidTargets.Contains(target) || !ValidActions.Contains(action))
+            // Validate target: sptServer, headlessClient, or headlessClient:{id}
+            var isValidTarget = target == "sptServer" || target == "headlessClient" || target.StartsWith("headlessClient:");
+            if (!isValidTarget || !ValidActions.Contains(action))
             {
                 _log($"Rejected invalid command: {target}.{action}");
                 _ = SendCommandResultAsync(target, action, false, $"Rejected — invalid command: {target}.{action}");
@@ -316,9 +342,9 @@ public class CommandCenterConnection : IDisposable
             _ = SendCommandResultAsync(target, action, false, "This watchdog cannot manage the SPT server (no SPT root)");
             return;
         }
-        if (target == "headlessClient" && !_canManageHeadless)
+        if ((target == "headlessClient" || target.StartsWith("headlessClient:")) && !_canManageHeadless)
         {
-            _ = SendCommandResultAsync(target, action, false, "This watchdog cannot manage the headless client (EFT exe not found)");
+            _ = SendCommandResultAsync(target, action, false, "This watchdog cannot manage headless clients (EFT exe not found)");
             return;
         }
 
@@ -327,16 +353,55 @@ public class CommandCenterConnection : IDisposable
 
         try
         {
-            (success, message) = (target, action) switch
+            if (target == "sptServer")
             {
-                ("sptServer", "start") => (true, DoServerStart()),
-                ("sptServer", "stop") => (true, DoServerStop()),
-                ("sptServer", "restart") => (true, DoServerRestart()),
-                ("headlessClient", "start") => (true, DoHeadlessStart()),
-                ("headlessClient", "stop") => (true, DoHeadlessStop()),
-                ("headlessClient", "restart") => (true, DoHeadlessRestart()),
-                _ => (false, $"Unknown: {target}.{action}")
-            };
+                (success, message) = action switch
+                {
+                    "start" => (true, DoServerStart()),
+                    "stop" => (true, DoServerStop()),
+                    "restart" => (true, DoServerRestart()),
+                    _ => (false, $"Unknown action: {action}")
+                };
+            }
+            else if (target.StartsWith("headlessClient:"))
+            {
+                var instanceId = target["headlessClient:".Length..];
+                var mgr = _headlessManagers.FirstOrDefault(m => m.InstanceId == instanceId);
+                if (mgr == null)
+                {
+                    success = false;
+                    message = $"Unknown headless instance: {instanceId}";
+                }
+                else
+                {
+                    (success, message) = action switch
+                    {
+                        "start" => (true, DoHeadlessAction(mgr, "start")),
+                        "stop" => (true, DoHeadlessAction(mgr, "stop")),
+                        "restart" => (true, DoHeadlessAction(mgr, "restart")),
+                        _ => (false, $"Unknown action: {action}")
+                    };
+                }
+            }
+            else // target == "headlessClient" — operate on first (legacy compat)
+            {
+                var mgr = _headlessManagers.FirstOrDefault();
+                if (mgr == null)
+                {
+                    success = false;
+                    message = "No headless clients configured";
+                }
+                else
+                {
+                    (success, message) = action switch
+                    {
+                        "start" => (true, DoHeadlessAction(mgr, "start")),
+                        "stop" => (true, DoHeadlessAction(mgr, "stop")),
+                        "restart" => (true, DoHeadlessAction(mgr, "restart")),
+                        _ => (false, $"Unknown action: {action}")
+                    };
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -350,19 +415,28 @@ public class CommandCenterConnection : IDisposable
     private string DoServerStart() { _server.Start(); return "Server start initiated"; }
     private string DoServerStop()
     {
-        if (_headless.IsRunning) _headless.Stop();
+        foreach (var m in _headlessManagers)
+            if (m.IsRunning) m.Stop();
         _server.Stop();
         return "Server stopped";
     }
     private string DoServerRestart()
     {
-        if (_headless.IsRunning) _headless.Stop();
+        foreach (var m in _headlessManagers)
+            if (m.IsRunning) m.Stop();
         _server.Restart();
         return "Server restart initiated";
     }
-    private string DoHeadlessStart() { _headless.Start(); return "Headless start initiated"; }
-    private string DoHeadlessStop() { _headless.Stop(); return "Headless stopped"; }
-    private string DoHeadlessRestart() { _headless.Restart(); return "Headless restart initiated"; }
+    private static string DoHeadlessAction(HeadlessProcessManager mgr, string action)
+    {
+        switch (action)
+        {
+            case "start": mgr.Start(); return $"{mgr.InstanceName} start initiated";
+            case "stop": mgr.Stop(); return $"{mgr.InstanceName} stopped";
+            case "restart": mgr.Restart(); return $"{mgr.InstanceName} restart initiated";
+            default: return $"Unknown action: {action}";
+        }
+    }
 
     // ── Outbound Messages ───────────────────────────────────────
 

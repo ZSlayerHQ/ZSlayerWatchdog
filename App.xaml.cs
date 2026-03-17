@@ -16,7 +16,7 @@ public partial class App : System.Windows.Application
         if (!watchdogConfig.Muted)
             BootSound.PreRender();
 
-        var sptRoot = DiscoverSptRoot();
+        var sptRoot = DiscoverSptRoot(watchdogConfig);
         var canManageServer = sptRoot != null;
 
         // Load CC shared config (only if SPT root found)
@@ -42,41 +42,76 @@ public partial class App : System.Windows.Application
             serverManager.SetConsoleVisible(showServer);
         }
 
-        var headlessManager = new HeadlessProcessManager(
-            config.Headless, sptRoot, Log,
-            explicitExePath: string.IsNullOrEmpty(watchdogConfig.HeadlessExePath) ? null : watchdogConfig.HeadlessExePath,
-            explicitProfileId: string.IsNullOrEmpty(watchdogConfig.HeadlessProfileId) ? null : watchdogConfig.HeadlessProfileId,
-            explicitBackendUrl: string.IsNullOrEmpty(watchdogConfig.HeadlessBackendUrl) ? null : watchdogConfig.HeadlessBackendUrl);
-        headlessManager.SetServerManager(serverManager);
-        headlessManager.Configure();
-
-        var canManageHeadless = headlessManager.IsAvailable;
-
-        if (canManageServer)
-        {
-            var showHeadless = config.Watchdog.StartHidden ? false : config.Watchdog.ShowHeadlessConsole;
-            headlessManager.SetConsoleVisible(showHeadless);
-        }
+        // Migrate legacy single-headless config → headlessClients list
+        MigrateHeadlessConfig(watchdogConfig, config.Headless, watchdogConfigPath);
 
         var serverUrl = DiscoverServerUrl(watchdogConfig, sptRoot, serverManager);
-        headlessManager.SetServerUrl(serverUrl);
-
         var token = DiscoverToken(watchdogConfig, sptRoot);
+
+        // Create one HeadlessProcessManager per configured headless client
+        var headlessManagers = new List<HeadlessProcessManager>();
+        foreach (var hc in watchdogConfig.HeadlessClients)
+        {
+            var mgr = new HeadlessProcessManager(
+                new HeadlessSection
+                {
+                    AutoStart = hc.AutoStart,
+                    AutoRestart = hc.AutoRestart,
+                    AutoStartDelaySec = hc.AutoStartDelaySec,
+                    ProfileId = hc.ProfileId,
+                    ExePath = hc.ExePath,
+                    RestartAfterRaids = hc.RestartAfterRaids
+                },
+                sptRoot, Log,
+                explicitExePath: string.IsNullOrEmpty(hc.ExePath) ? null : hc.ExePath,
+                explicitProfileId: string.IsNullOrEmpty(hc.ProfileId) ? null : hc.ProfileId,
+                explicitBackendUrl: string.IsNullOrEmpty(hc.BackendUrl) ? null : hc.BackendUrl)
+            {
+                InstanceId = hc.Id,
+                InstanceName = hc.Name
+            };
+            mgr.SetServerManager(serverManager);
+            mgr.Configure();
+            mgr.SetServerUrl(serverUrl);
+
+            if (canManageServer)
+            {
+                var showHeadless = config.Watchdog.StartHidden ? false : config.Watchdog.ShowHeadlessConsole;
+                mgr.SetConsoleVisible(showHeadless);
+            }
+
+            headlessManagers.Add(mgr);
+        }
+
+        var canManageHeadless = headlessManagers.Any(m => m.IsAvailable);
 
         var connection = new CommandCenterConnection(
             serverUrl, watchdogConfig.WatchdogId, watchdogConfig.Name,
-            token, config, serverManager, headlessManager, Log,
+            token, config, serverManager, headlessManagers, Log,
             canManageServer, canManageHeadless);
 
         var mainWindow = new MainWindow(config, configPath,
             watchdogConfig, watchdogConfigPath, sptRoot,
-            serverManager, headlessManager, connection,
+            serverManager, headlessManagers, connection,
             canManageServer, canManageHeadless);
         mainWindow.Show();
     }
 
-    private static string? DiscoverSptRoot()
+    private static string? DiscoverSptRoot(WatchdogIdentityConfig wdConfig)
     {
+        // 1. Manual override from watchdog-config.json
+        if (!string.IsNullOrEmpty(wdConfig.SptRootPath))
+        {
+            var serverExe = Path.Combine(wdConfig.SptRootPath, "SPT.Server.exe");
+            if (File.Exists(serverExe))
+            {
+                Log($"SPT root from manual override: {wdConfig.SptRootPath}");
+                return Path.GetFullPath(wdConfig.SptRootPath);
+            }
+            Log($"Manual SPT root path invalid (SPT.Server.exe not found): {wdConfig.SptRootPath}");
+        }
+
+        // 2. Auto-detect from launcher directory
         var launcherDir = AppContext.BaseDirectory;
 
         var candidates = new[]
@@ -95,6 +130,63 @@ public partial class App : System.Windows.Application
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Migrate legacy single-headless fields to the new headlessClients list.
+    /// Runs once on first launch after upgrade.
+    /// </summary>
+    private static void MigrateHeadlessConfig(WatchdogIdentityConfig wdConfig, HeadlessSection sharedHeadless, string configPath)
+    {
+        if (wdConfig.HeadlessClients.Count > 0)
+            return; // Already migrated or user-configured
+
+        var hasLegacyWd = !string.IsNullOrEmpty(wdConfig.HeadlessExePath) ||
+                          !string.IsNullOrEmpty(wdConfig.HeadlessProfileId) ||
+                          !string.IsNullOrEmpty(wdConfig.HeadlessBackendUrl);
+        var hasShared = !string.IsNullOrEmpty(sharedHeadless.ProfileId);
+
+        if (!hasLegacyWd && !hasShared)
+        {
+            // No existing headless config — create one empty default entry
+            wdConfig.HeadlessClients.Add(new HeadlessClientConfig { Name = "Headless 1" });
+            SaveWatchdogConfigStatic(wdConfig, configPath);
+            Log("Created default headless client entry");
+            return;
+        }
+
+        // Migrate from legacy fields
+        var migrated = new HeadlessClientConfig
+        {
+            Name = "Headless 1",
+            ExePath = wdConfig.HeadlessExePath,
+            ProfileId = !string.IsNullOrEmpty(wdConfig.HeadlessProfileId) ? wdConfig.HeadlessProfileId : sharedHeadless.ProfileId,
+            BackendUrl = wdConfig.HeadlessBackendUrl,
+            AutoStart = sharedHeadless.AutoStart,
+            AutoRestart = sharedHeadless.AutoRestart,
+            AutoStartDelaySec = sharedHeadless.AutoStartDelaySec,
+            RestartAfterRaids = sharedHeadless.RestartAfterRaids
+        };
+
+        wdConfig.HeadlessClients.Add(migrated);
+
+        // Clear legacy fields
+        wdConfig.HeadlessExePath = "";
+        wdConfig.HeadlessProfileId = "";
+        wdConfig.HeadlessBackendUrl = "";
+
+        SaveWatchdogConfigStatic(wdConfig, configPath);
+        Log("Migrated legacy headless config to headlessClients[0]");
+    }
+
+    private static void SaveWatchdogConfigStatic(WatchdogIdentityConfig config, string path)
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json);
+        }
+        catch { /* best effort */ }
     }
 
     private static WatchdogAppConfig LoadConfig(string configPath)
