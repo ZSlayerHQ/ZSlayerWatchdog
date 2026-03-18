@@ -405,8 +405,14 @@ public class HeadlessProcessManager
     public void SetConsoleVisible(bool visible)
     {
         _consoleVisible = visible;
+        // Clear stale handles so we re-discover the console window
+        _windowHandles.Clear();
         ApplyConsoleVisibility();
     }
+
+    /// <summary>Update internal config flags from external toggle (UI sync).</summary>
+    public void SetAutoStart(bool value) => _config.AutoStart = value;
+    public void SetAutoRestart(bool value) => _config.AutoRestart = value;
 
     private void DiscoverWindows()
     {

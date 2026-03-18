@@ -518,6 +518,9 @@ public partial class MainWindow : Window
     {
         if (idx < 0 || idx >= _watchdogConfig.HeadlessClients.Count) return;
         _watchdogConfig.HeadlessClients[idx].AutoRestart = !_watchdogConfig.HeadlessClients[idx].AutoRestart;
+        // Sync to the manager's internal config so runtime behavior matches
+        if (idx < _headlessManagers.Count)
+            _headlessManagers[idx].SetAutoRestart(_watchdogConfig.HeadlessClients[idx].AutoRestart);
         SaveWatchdogConfig();
     }
 
@@ -528,6 +531,8 @@ public partial class MainWindow : Window
         hc.AutoStart = !hc.AutoStart;
         if (idx < _headlessManagers.Count)
         {
+            // Sync to manager's internal config so StartAutoStartTimer guard passes
+            _headlessManagers[idx].SetAutoStart(hc.AutoStart);
             if (hc.AutoStart)
                 _headlessManagers[idx].StartAutoStartTimer(() => _server.ServerReady);
             else
