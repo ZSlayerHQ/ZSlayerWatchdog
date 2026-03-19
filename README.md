@@ -4,10 +4,10 @@
 
 **Desktop process manager for SPT server + FIKA headless clients**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-c8aa6e.svg)](LICENSE)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-c8aa6e.svg)](LICENSE)
 [![SPT](https://img.shields.io/badge/SPT-4.0.x-c8aa6e.svg)]()
 [![FIKA](https://img.shields.io/badge/FIKA-Compatible-4a7c59.svg)]()
-[![Version](https://img.shields.io/badge/v2.0.0-c8aa6e.svg)](https://github.com/ZSlayerHQ/ZSlayerWatchdog/releases)
+[![Version](https://img.shields.io/badge/v2.1.0-c8aa6e.svg)](https://github.com/ZSlayerHQ/ZSlayerWatchdog/releases)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512bd4.svg)]()
 [![WebView2](https://img.shields.io/badge/WebView2-Desktop-blue.svg)]()
 
@@ -166,4 +166,4 @@ The watchdog connects to the Command Center server via WebSocket for real-time b
 
 ## License
 
-[MIT](LICENSE) — Built by [ZSlayerHQ / Ben Cole](https://github.com/ZSlayerHQ)
+[CC BY-NC-SA 4.0](LICENSE) — Built by [ZSlayerHQ / Ben Cole](https://github.com/ZSlayerHQ)
